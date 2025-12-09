@@ -1,0 +1,64 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# --- Build output ---
+dist/
+build/
+.out/
+.next/
+.vercel/
+.cache/
+coverage/
+
+# --- Environment Variables ---
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# --- Logs ---
+*.log
+logs/
+debug.log
+*.pid
+
+# --- OS / Editor junk ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Tests / Temporary ---
+.nyc_output/
+coverage/
+tmp/
+temp/
+
+# --- Storybook files ---
+storybook-static/
+
+# --- TypeScript ---
+*.tsbuildinfo
+
+# --- Lockfiles (optional) ---
+pnpm-lock.yaml
+yarn.lock
+
+# --- Webpack / Vite cache ---
+.cache/
+vite.config.ts.timestamp*
+.vite/
+vite.config.js.timestamp*
+
+# --- Misc build items ---
+*.local
+*.bak
+*.old
+*.orig
