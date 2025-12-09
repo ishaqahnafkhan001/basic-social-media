@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const userRouter = require('./routes/users');
 const postRouter = require('./routes/posts');
+const commentRouter = require('./routes/comments');
 const connectDB = require('./db/db');
 const cors = require('cors');
 dotenv.config();
@@ -24,6 +25,7 @@ connectDB();
 // Routes
 app.use('/api/users', userRouter);
 app.use('/api/posts', postRouter);
+app.use('/api/comments', commentRouter);
 
 // Start server
 app.listen(port, () => console.log(`server is running on port ${port}`));

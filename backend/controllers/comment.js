@@ -1,4 +1,4 @@
-const Comment = require('../models/Comment'); // Adjust path to your model
+const Comment = require('../models/blog/Comment'); // Adjust path to your model
 
 // @desc    Create a new comment
 // @route   POST /api/comments/:postId
