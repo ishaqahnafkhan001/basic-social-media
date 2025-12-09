@@ -6,7 +6,7 @@ const {
     getPosts,
     getPost,
     updatePost,
-    deletePost
+    deletePost,getPostsByUser,toggleLike
 } = require("../controllers/post");
 
 // PUBLIC ROUTES
@@ -17,7 +17,8 @@ router.get("/:id", getPost);
 router.post("/", authMiddleware, createPost);
 router.put("/:id", authMiddleware, updatePost);
 router.delete("/:id", authMiddleware, deletePost);
-
+router.get("/user/:id",authMiddleware, getPostsByUser);
+router.put('/like/:id',authMiddleware , toggleLike);
 module.exports = router;
 
 

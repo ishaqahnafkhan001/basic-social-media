@@ -52,6 +52,20 @@ const getPost = async (req, res) => {
     }
 };
 
+const getPostsByUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const posts = await Post.find({ user: id })
+            .populate("user", "name email")
+            .sort({ createdAt: -1 });
+        return res.json(posts);
+
+    } catch (err) {
+        console.error("Get Posts by User Error:", err.message);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
 
 // UPDATE POST
 const updatePost = async (req, res) => {
@@ -107,10 +121,46 @@ const deletePost = async (req, res) => {
 };
 
 
+// @desc    Like or Unlike a post
+// @route   PUT /api/posts/like/:id
+const toggleLike = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        if (!post) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+
+        // Check if the post has already been liked by this user
+        // We compare ObjectIds by converting to string
+        const isLiked = post.likes.some(
+            (userId) => userId.toString() === req.user._id.toString()
+        );
+
+        if (isLiked) {
+            // IF ALREADY LIKED: Remove user from likes array (Unlike)
+            post.likes = post.likes.filter(
+                (userId) => userId.toString() !== req.user._id.toString()
+            );
+            await post.save();
+            return res.status(200).json({ message: "Post unliked", likes: post.likes });
+        } else {
+            // IF NOT LIKED: Add user to likes array (Like)
+            post.likes.unshift(req.user._id); // Add to beginning of array
+            await post.save();
+            return res.status(200).json({ message: "Post liked", likes: post.likes });
+        }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 module.exports = {
     createPost,
     getPosts,
     getPost,
     updatePost,
-    deletePost
+    deletePost,getPostsByUser,toggleLike
 };
