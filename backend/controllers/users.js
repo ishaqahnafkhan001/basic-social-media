@@ -3,26 +3,47 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 // CREATE USER
+// CREATE USER
 const createUser = async (req, res) => {
     try {
+        // 1. Validate input (Now includes role check)
         const { error } = validateUser(req.body);
         if (error) return res.status(400).json({ message: error.details[0].message });
 
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
 
+        // 2. Check if user exists
         const exists = await User.findOne({ email });
         if (exists) return res.status(409).json({ message: "User already exists" });
 
+        // 3. Hash password
         const hashed = await bcrypt.hash(password, 10);
 
-        const user = await User.create({ name, email, password: hashed,role:"user" });
+        // 4. Create user with the specific ROLE
+        // If role is empty/undefined, the Mongoose schema default ('user') takes over
+        const user = await User.create({
+            name,
+            email,
+            password: hashed,
+            role: role || 'user'
+        });
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
+        // 5. Generate Token
+        const token = jwt.sign(
+            { id: user._id, role: user.role }, // Added role to token payload (useful for frontend checks)
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        );
 
         res.status(201).json({
             message: "User created",
             token,
-            user: { id: user._id, name: user.name, email: user.email,role:user.role }
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
         });
 
     } catch (err) {
@@ -30,7 +51,6 @@ const createUser = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-
 // GET ALL USERS
 const getUsers = async (req, res) => {
     try {

@@ -7,6 +7,7 @@ import BlogDashboard from "./pages/BlogDashboard.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Profile from "./pages/Profile.jsx";
 import AllBlogs from "./pages/AllBlogs.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 
 export default function App() {
     return (
@@ -40,6 +41,14 @@ export default function App() {
                         element={
                             <ProtectedRoute>
                                 <AllBlogs />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard"
+                        element={
+                            <ProtectedRoute>
+                                <Dashboard />
                             </ProtectedRoute>
                         }
                     />

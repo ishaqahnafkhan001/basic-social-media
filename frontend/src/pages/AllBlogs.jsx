@@ -4,7 +4,7 @@ import { FiMenu, FiSearch, FiMessageSquare, FiHeart } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 // Components
-import Sidebar from "../components/layout/Sidebar";
+import Sidebar from "../components/profile/Sidebar.jsx";
 import Nav from "../components/nav/Nav";
 import PostCard from "../components/posts/PostCard";
 import PostDetailModal from "../components/modals/PostDetailModal";

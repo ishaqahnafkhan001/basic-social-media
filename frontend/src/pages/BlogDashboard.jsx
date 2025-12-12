@@ -4,7 +4,7 @@ import { FiMenu, FiSearch, FiX } from "react-icons/fi";
 
 // Hooks & Components
 import usePosts from "../hooks/usePosts";
-import Sidebar from "../components/layout/Sidebar";
+import Sidebar from "../components/profile/Sidebar.jsx";
 import PostCard from "../components/posts/PostCard";
 import PostForm from "../components/posts/PostForm";
 import PostDetailModal from "../components/modals/PostDetailModal";

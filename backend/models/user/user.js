@@ -18,11 +18,11 @@ const userSchema = new mongoose.Schema({
         required: true,
         minlength: 6
     },
-    role:{
-        type:String,
-        enum:['user','admin',"agency"],
-        default:'user',
-        required:true
+    role: {
+        type: String,
+        enum: ['user', 'admin', 'agency'], // Added agency here
+        default: 'user',
+        required: true
     }
 });
 
@@ -31,7 +31,9 @@ const validateUser = (data) => {
     const schema = Joi.object({
         name: Joi.string().min(2).required(),
         email: Joi.string().email().required(),
-        password: Joi.string().min(6).required()
+        password: Joi.string().min(6).required(),
+        // UPDATED: Added role validation to allow user or agency
+        role: Joi.string().valid('user', 'agency', 'admin').optional()
     });
 
     return schema.validate(data);

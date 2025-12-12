@@ -36,4 +36,21 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-module.exports = { authMiddleware };
+const isAgency = (req, res, next) => {
+    // Safety check: Ensure authMiddleware ran first
+    if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Check the role (Make sure your User model has a 'role' field)
+    if (req.user.role !== 'agency') {
+        return res.status(403).json({
+            success: false,
+            message: "Access denied. Restricted to Agencies only."
+        });
+    }
+
+    next();
+};
+
+module.exports = { authMiddleware, isAgency };
