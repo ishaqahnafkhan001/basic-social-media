@@ -5,6 +5,8 @@ import { Toaster } from "react-hot-toast";
 import AuthPage from "./pages/AuthPage.jsx";
 import BlogDashboard from "./pages/BlogDashboard.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
+import Profile from "./pages/Profile.jsx";
+import AllBlogs from "./pages/AllBlogs.jsx";
 
 export default function App() {
     return (
@@ -18,10 +20,26 @@ export default function App() {
 
                     {/* Protected Dashboard */}
                     <Route
-                        path="/dashboard"
+                        path="/blog"
                         element={
                             <ProtectedRoute>
                                 <BlogDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProtectedRoute>
+                                <Profile />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/all-blogs"
+                        element={
+                            <ProtectedRoute>
+                                <AllBlogs />
                             </ProtectedRoute>
                         }
                     />

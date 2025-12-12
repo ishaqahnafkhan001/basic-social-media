@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import authApi from "../api/authApi"; // your API module
+import userApi from "../api/authApi"; // your API module
 import { useNavigate } from "react-router-dom";
 
 
@@ -26,7 +26,7 @@ export default function AuthPage() {
 
             if (isSignup) {
                 // SIGNUP
-                res = await authApi.register({
+                res = await userApi.register({
                     name: form.name,
                     email: form.email,
                     password: form.password,
@@ -36,7 +36,7 @@ export default function AuthPage() {
                 setIsSignup(false); // go to login screen
             } else {
                 // LOGIN
-                res = await authApi.login({
+                res = await userApi.login({
                     email: form.email,
                     password: form.password,
                 });
@@ -44,6 +44,7 @@ export default function AuthPage() {
                 toast.success("Logged in successfully!");
 
                 localStorage.setItem("accessToken", res.data.token);
+                localStorage.setItem("user", JSON.stringify(res.data.user));
 
 // Redirect using React Router
                 navigate("/dashboard");

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import commentsApi from "../api/commentsApi";
+import commentsApi from "../api/commentsApi.js";
 
 export default function useComments(postId, userId) {
     const [comments, setComments] = useState([]);
@@ -22,15 +22,30 @@ export default function useComments(postId, userId) {
         fetchComments();
     }, [postId]);
 
+
     const addComment = async (text) => {
+        // optimistically update UI could go here, but let's wait for success
         try {
             const res = await commentsApi.create(postId, { comment: text });
-            const created = res.data?.comment ?? res.data;
-            // Fallback for immediate UI update if populate isn't returned
-            const safeComment = { ...created, user: created.user || { _id: userId, name: "Me" } };
-            setComments([...comments, safeComment]);
+
+            console.log("Create Comment Response:", res.data);
+
+            const serverData = res.data.comment || res.data || {};
+
+            // 🛡️ HYBRID FIX: Force the text content
+            const safeComment = {
+                _id: serverData._id || Math.random().toString(),
+                createdAt: new Date().toISOString(),
+                ...serverData,
+                // FORCE these two fields to ensure it's never blank:
+                comment: text, // <--- Use the text argument directly!
+                user: serverData.user || { _id: userId, name: "Me" }
+            };
+
+            setComments((prev) => [...prev, safeComment]);
             toast.success("Comment added");
         } catch (err) {
+            console.error(err);
             toast.error("Failed to add comment");
         }
     };

@@ -7,7 +7,7 @@ const {
     getPost,
     updatePost,
     deletePost,getPostsByUser,toggleLike
-} = require("../controllers/post");
+} = require("../controllers/blog/post");
 
 // PUBLIC ROUTES
 router.get("/", getPosts);

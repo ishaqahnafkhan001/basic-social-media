@@ -4,7 +4,7 @@ const {
     createComment,
     getPostComments,
     deleteComment
-} = require('../controllers/comment');
+} = require('../controllers/blog/comment');
 
 // Middleware to check if user is logged in
 // Replace 'middleware/auth' with your actual auth middleware file path
