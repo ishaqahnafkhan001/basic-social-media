@@ -1,16 +1,15 @@
-const { Tour, validateTour } = require('../models/Tour'); // Adjust path as needed
+const { Tour, validateTour } = require('../../models/tour');
 
-// --- 1. Create a new Tour ---
+// --------------------- 1. Create Tour ---------------------
 const createTour = async (req, res) => {
     try {
-        // 1. Inject the logged-in user's ID as the agency
-        // (Assumes you have auth middleware that sets req.user)
+        // Inject logged-in agency ID
         const tourData = {
             ...req.body,
-            agency: req.user ? req.user._id.toString() : req.body.agency
+            agency: req.user._id.toString()
         };
 
-        // 2. Validate using Joi
+        // Joi validation
         const { error } = validateTour(tourData);
         if (error) {
             return res.status(400).json({
@@ -19,9 +18,7 @@ const createTour = async (req, res) => {
             });
         }
 
-        // 3. Create and Save
-        const newTour = new Tour(tourData);
-        const savedTour = await newTour.save();
+        const savedTour = await new Tour(tourData).save();
 
         res.status(201).json({
             success: true,
@@ -38,50 +35,47 @@ const createTour = async (req, res) => {
     }
 };
 
-// --- 2. Get All Tours (With Filters, Sort, & Pagination) ---
+// --------------------- 2. Get All Tours ---------------------
 const getAllTours = async (req, res) => {
     try {
-        // Destructure query params for filtering
         const {
             page = 1,
             limit = 10,
-            sort = '-createdAt', // Default: newest first
+            sort = '-createdAt',
             country,
             category,
             minPrice,
             maxPrice
         } = req.query;
 
-        // Build the query object
-        const query = {};
+        const query = { isActive: true };
 
-        // Add filters if they exist
         if (country) query.destinationCountry = country;
         if (category) query.category = category;
+
         if (minPrice || maxPrice) {
             query.pricePerPerson = {};
             if (minPrice) query.pricePerPerson.$gte = Number(minPrice);
             if (maxPrice) query.pricePerPerson.$lte = Number(maxPrice);
         }
 
-        // Only show active tours to public
-        query.isActive = true;
-
-        // Execute Query
         const tours = await Tour.find(query)
+            // --- POPULATE ADDED HERE ---
+            // 1st arg: The field in Tour schema to populate ('agency')
+            // 2nd arg: The fields to select from the User schema ('name email profilePicture')
+            .populate('agency', 'name email')
             .sort(sort)
+            .skip((page - 1) * limit)
             .limit(Number(limit))
-            .skip((Number(page) - 1) * Number(limit))
-            .select('-__v'); // Exclude version key
+            .select('-__v');
 
-        // Get total count for pagination frontend logic
         const count = await Tour.countDocuments(query);
 
         res.status(200).json({
             success: true,
             count,
-            totalPages: Math.ceil(count / limit),
             currentPage: Number(page),
+            totalPages: Math.ceil(count / limit),
             data: tours
         });
 
@@ -90,45 +84,70 @@ const getAllTours = async (req, res) => {
     }
 };
 
-// --- 3. Get Single Tour by ID ---
+// --------------------- 3. Get Single Tour ---------------------
 const getTourById = async (req, res) => {
     try {
         const tour = await Tour.findById(req.params.id)
-            .populate('agency', 'name email avatar'); // Populate agency details (exclude password)
+            .populate('agency', 'name email avatar');
 
-        if (!tour) {
-            return res.status(404).json({ success: false, message: "Tour not found" });
-        }
+        if (!tour) return res.status(404).json({ success: false, message: "Tour not found" });
 
         res.status(200).json({ success: true, data: tour });
 
     } catch (err) {
-        // Handle invalid ObjectId format
-        if (err.kind === 'ObjectId') {
-            return res.status(404).json({ success: false, message: "Tour not found" });
+        if (err.kind === "ObjectId") {
+            return res.status(404).json({ success: false, message: "Invalid ID format" });
         }
-        res.status(500).json({ success: false, message: "Server Error" });
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
 
-// --- 4. Update Tour ---
+// --------------------- 4. Update Tour ---------------------
 const updateTour = async (req, res) => {
     try {
-        // Optional: Add logic to ensure only the owner (agency) can update
         const tour = await Tour.findById(req.params.id);
 
         if (!tour) return res.status(404).json({ success: false, message: "Tour not found" });
 
-        // Check ownership (Pseudo-code, assumes req.user exists)
+        // Ownership check
         if (tour.agency.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ success: false, message: "Not authorized to update this tour" });
+            return res.status(403).json({ success: false, message: "Not authorized to update" });
         }
 
-        // Update
+        // 1. Create a merged object for validation
+        // We use tour.toObject() to get a clean JS object, then strip internal fields
+        const currentTourData = tour.toObject();
+        delete currentTourData._id;
+        delete currentTourData.__v;
+        delete currentTourData.createdAt;
+        delete currentTourData.updatedAt;
+
+        // Merge existing data with the new request body
+        const updatedData = {
+            ...currentTourData,
+            ...req.body,
+            agency: tour.agency.toString()
+        };
+
+        // 2. Validate
+        // We pass a second argument 'isUpdate' (explained below) or we accept that
+        // startDate validation might fail if strictly enforcing 'greater now'.
+        // A quick fix is to allow unknown fields in Joi, but better to clean data as above.
+
+        const { error } = validateTour(updatedData, true); // Pass true to signal an update
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.details[0].message
+            });
+        }
+
+        // 3. Perform the Update
         const updatedTour = await Tour.findByIdAndUpdate(
             req.params.id,
             { $set: req.body },
-            { new: true, runValidators: true } // Return new doc & run Mongoose validators
+            { new: true, runValidators: true } // Mongoose validators run here too
         );
 
         res.status(200).json({
@@ -141,17 +160,15 @@ const updateTour = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
-
-// --- 5. Delete Tour ---
+// --------------------- 5. Delete Tour ---------------------
 const deleteTour = async (req, res) => {
     try {
         const tour = await Tour.findById(req.params.id);
 
         if (!tour) return res.status(404).json({ success: false, message: "Tour not found" });
 
-        // Check ownership
         if (tour.agency.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ success: false, message: "Not authorized to delete this tour" });
+            return res.status(403).json({ success: false, message: "Not authorized to delete" });
         }
 
         await Tour.findByIdAndDelete(req.params.id);
@@ -163,7 +180,7 @@ const deleteTour = async (req, res) => {
     }
 };
 
-// --- 6. Get Tours by Agency (For Agency Dashboard) ---
+// --------------------- 6. Get Tours by Logged-in Agency ---------------------
 const getMyTours = async (req, res) => {
     try {
         const tours = await Tour.find({ agency: req.user._id });
@@ -173,6 +190,7 @@ const getMyTours = async (req, res) => {
             count: tours.length,
             data: tours
         });
+
     } catch (err) {
         res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }

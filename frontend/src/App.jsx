@@ -7,7 +7,12 @@ import BlogDashboard from "./pages/BlogDashboard.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Profile from "./pages/Profile.jsx";
 import AllBlogs from "./pages/AllBlogs.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
+import CreateBlog from "./pages/CreateBlog.jsx";
+import CreateTour from "./pages/CreateTour.jsx";
+import MyCreatedTour from "./pages/Tour.jsx";
+import UpdateTour from "./pages/UpDateTour.jsx";
+import MainDash from "./pages/MainDash.jsx";
+import TourDetail from "./pages/TourDetail.jsx";
 
 export default function App() {
     return (
@@ -16,44 +21,29 @@ export default function App() {
 
             <BrowserRouter>
                 <Routes>
-                    {/* Auth Page */}
+
+                    {/* Auth */}
                     <Route path="/auth" element={<AuthPage />} />
 
-                    {/* Protected Dashboard */}
-                    <Route
-                        path="/blog"
-                        element={
-                            <ProtectedRoute>
-                                <BlogDashboard />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/profile"
-                        element={
-                            <ProtectedRoute>
-                                <Profile />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/all-blogs"
-                        element={
-                            <ProtectedRoute>
-                                <AllBlogs />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <ProtectedRoute>
-                                <Dashboard />
-                            </ProtectedRoute>
-                        }
-                    />
+                    {/* Blogs */}
+                    <Route path="/blog/myBlogs" element={<ProtectedRoute><BlogDashboard /></ProtectedRoute>} />
+                    <Route path="/blog/all-blogs" element={<ProtectedRoute><AllBlogs /></ProtectedRoute>} />
 
-                    {/* Default Redirect */}
+                    {/* User */}
+                    <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+                    {/* Dashboard */}
+                    <Route path="/dashboard" element={<ProtectedRoute><MainDash /></ProtectedRoute>} />
+
+                    {/* Blog Create */}
+                    <Route path="/create-blog" element={<ProtectedRoute><CreateBlog /></ProtectedRoute>} />
+
+                    {/* Tour */}
+                    <Route path="/create-tour" element={<ProtectedRoute><CreateTour /></ProtectedRoute>} />
+                    <Route path="/tours/my-tours" element={<ProtectedRoute><MyCreatedTour /></ProtectedRoute>} />
+                    <Route path="/update-tour/:id" element={<ProtectedRoute><UpdateTour /></ProtectedRoute>} />
+                    <Route path="/tours/:id" element={<ProtectedRoute><TourDetail /></ProtectedRoute>} />
+                    {/* Fallback */}
                     <Route path="*" element={<AuthPage />} />
                 </Routes>
             </BrowserRouter>

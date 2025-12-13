@@ -3,34 +3,38 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 // CREATE USER
-// CREATE USER
 const createUser = async (req, res) => {
     try {
-        // 1. Validate input (Now includes role check)
         const { error } = validateUser(req.body);
         if (error) return res.status(400).json({ message: error.details[0].message });
 
-        const { name, email, password, role } = req.body;
+        // 1. Destructure ALL fields you want to save
+        const {
+            name, email, password, role,
+            phoneNumber, address, socialLinks, description
+        } = req.body;
 
-        // 2. Check if user exists
         const exists = await User.findOne({ email });
         if (exists) return res.status(409).json({ message: "User already exists" });
 
-        // 3. Hash password
         const hashed = await bcrypt.hash(password, 10);
 
-        // 4. Create user with the specific ROLE
-        // If role is empty/undefined, the Mongoose schema default ('user') takes over
+        // 2. Pass them to the create function
         const user = await User.create({
             name,
             email,
             password: hashed,
-            role: role || 'user'
+            role: role || 'user',
+            // Save the extra fields:
+            phoneNumber,
+            address,
+            socialLinks,
+            description,
+            verificationData: { status: 'unverified' }
         });
 
-        // 5. Generate Token
         const token = jwt.sign(
-            { id: user._id, role: user.role }, // Added role to token payload (useful for frontend checks)
+            { id: user._id, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
@@ -38,12 +42,7 @@ const createUser = async (req, res) => {
         res.status(201).json({
             message: "User created",
             token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
+            user // Send full user back
         });
 
     } catch (err) {
@@ -54,7 +53,11 @@ const createUser = async (req, res) => {
 // GET ALL USERS
 const getUsers = async (req, res) => {
     try {
-        const users = await User.find().select("-password");
+        // Added: Simple filter to get only 'agency' or only 'user' if needed
+        // Usage: /users?role=agency
+        const filter = req.query.role ? { role: req.query.role } : {};
+
+        const users = await User.find(filter).select("-password");
         res.json(users);
     } catch (err) {
         res.status(500).json({ message: "Internal server error" });
@@ -77,16 +80,20 @@ const getUser = async (req, res) => {
 // UPDATE USER
 const updateUser = async (req, res) => {
     try {
-        // const { error } = validateUser(req.body);
-        // if (error) return res.status(400).json({ message: error.details[0].message });
+        // SECURITY: Remove sensitive fields from req.body so users can't hack them
+        delete req.body.role;           // Prevent self-promotion to admin
+        delete req.body.isVerified;     // Prevent fake verification
+        delete req.body.verificationData;
+        delete req.body.rating;         // Ratings must come from reviews
 
+        // Handle Password Update specifically
         if (req.body.password) {
             req.body.password = await bcrypt.hash(req.body.password, 10);
         }
 
         const updated = await User.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            { $set: req.body }, // Using $set is safer for nested objects like address/socialLinks
             { new: true }
         ).select("-password");
 
@@ -99,6 +106,7 @@ const updateUser = async (req, res) => {
     }
 };
 
+// LOGIN USER
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -117,8 +125,9 @@ const loginUser = async (req, res) => {
         if (!match) return res.status(400).json({ message: "Invalid password" });
 
         // Create JWT
+        // UPDATE: Added 'role' here so frontend knows permissions immediately
         const token = jwt.sign(
-            { id: user._id },
+            { id: user._id, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
@@ -131,7 +140,7 @@ const loginUser = async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role:user.role
+                role: user.role
             }
         });
 
@@ -140,13 +149,26 @@ const loginUser = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-const getId=async (req,res)=>{
-    const token=req.headers.authorization.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user._id);
-}
+
+// GET CURRENT USER (From Token)
+const getId = async (req, res) => {
+    try {
+        if (!req.headers.authorization) return res.status(401).json({message: "No token"});
+
+        const token = req.headers.authorization.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // UPDATE: Return the whole object, not just ID.
+        // The Profile Page needs 'name', 'email', 'address' etc to display.
+        const user = await User.findById(decoded.id).select("-password");
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        res.json(user); // Sending the object
+    } catch (err) {
+        res.status(401).json({ message: "Invalid Token" });
+    }
+};
 
 
 // DELETE USER
@@ -162,13 +184,12 @@ const deleteUser = async (req, res) => {
     }
 };
 
-
-
 module.exports = {
     createUser,
     loginUser,
     getUsers,
     getUser,
     updateUser,
-    deleteUser,getId
+    deleteUser,
+    getId
 };

@@ -42,7 +42,7 @@ router.post('/', authMiddleware, isAgency, createTour);
 
 // PATCH /api/tours/:id
 // (Update a tour - Only the Owner Agency)
-router.patch('/:id', authMiddleware, isAgency, updateTour);
+router.put('/:id', authMiddleware, isAgency, updateTour);
 
 // DELETE /api/tours/:id
 // (Delete a tour - Only the Owner Agency)

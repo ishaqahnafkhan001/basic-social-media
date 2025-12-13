@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const userRouter = require('./routes/users');
 const postRouter = require('./routes/posts');
+const tourRouter = require('./routes/tours');
 const commentRouter = require('./routes/comments');
 const connectDB = require('./db/db');
 const cors = require('cors');
@@ -25,6 +26,7 @@ connectDB();
 // Routes
 app.use('/api/users', userRouter);
 app.use('/api/posts', postRouter);
+app.use('/api/tours', tourRouter);
 app.use('/api/comments', commentRouter);
 
 // Start server

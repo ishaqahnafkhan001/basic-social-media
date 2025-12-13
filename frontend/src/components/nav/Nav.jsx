@@ -28,16 +28,17 @@ function Nav({ cartCount }) {
 
                     {/* 2. Desktop Navigation - Hidden on Mobile */}
                     <div className="hidden lg:flex items-center gap-1">
-                        <Link to="/dashboard" className={activeLinkStyles}>Home</Link>
+                        <Link to="/dashboard" className={linkStyles}>Home</Link>
 
-                        {/* Conditional Agency Link */}
-                        {(userRole === 'admin' || userRole === 'agency') && (
-                            <Link to="/create-tour" className={linkStyles}>Agency</Link>
-                        )}
+
+                        {/*/!* Conditional Agency Link *!/*/}
+                        {/*{(userRole === 'admin' || userRole === 'agency') && (*/}
+                        {/*    <Link to="/create-tour" className={linkStyles}>Agency</Link>*/}
+                        {/*)}*/}
 
                         <Link to="/EmergencyHub" className={linkStyles}>Emergency Hub</Link>
-                        <Link to="/profile" className={linkStyles}>Profile</Link>
-                        <Link to="/all-blogs" className={linkStyles}>Blog</Link>
+                        <Link to="/blog/myBlogs" className={linkStyles}>Profile</Link>
+                        <Link to="/blog/all-blogs" className={linkStyles}>Blogs</Link>
                     </div>
 
                     {/* 3. Right Side Icons (Cart & Profile) */}
