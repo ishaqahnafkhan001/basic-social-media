@@ -27,7 +27,7 @@ export default function useUser() {
         window.location.href = "/auth";
     };
 
-    // 3. Helper: Get Initials (e.g. "John Doe" -> "JD")
+    // 3. Helper: Get Initials
     const getInitials = () => {
         if (!user || !user.name) return "U";
         return user.name
@@ -38,15 +38,24 @@ export default function useUser() {
             .substring(0, 2);
     };
 
-    // 4. Return everything in a nice package
     return {
+        // Properties
+        user,
+        isLoading,
+        isLoggedIn: !!user,
+
+        // 🔥 FIXED: Handle both 'id' and '_id' here safely
+        id: user?.id || user?._id,
+
         userName: user?.name,
-        user,                       // The full object: { name, email, role, _id ... }
-        isLoading,                  // True while loading from localStorage
-        isLoggedIn: !!user,         // True if user exists
+        email: user?.email,
+
+        // Roles
         isAdmin: user?.role === "admin",
         isAgency: user?.role === "agency",
         role: user?.role,
+
+        // Helpers
         initials: getInitials(),
         logout
     };

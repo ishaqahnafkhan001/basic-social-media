@@ -1,381 +1,421 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
-    FiUser, FiMail, FiShield, FiLogOut, FiEdit2, FiSave, FiX,
-    FiCamera, FiMapPin, FiPhone, FiGlobe, FiInstagram, FiFacebook, FiCheckCircle, FiAlertCircle
+    FiUser, FiMail, FiMapPin, FiPhone, FiGlobe, FiInstagram, FiFacebook,
+    FiCheckCircle, FiStar, FiEdit2, FiSave, FiX, FiCamera, FiShield, FiMessageSquare, FiSend
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import userApi from "../api/userApi"; // UPDATED IMPORT
+import userApi from "../api/userApi";
 import Nav from "../components/nav/Nav";
+import useUser from "../hooks/userInfo.js"; // Use your custom hook
 
 export default function Profile() {
-    const [user, setUser] = useState(null);
-    const [isEditing, setIsEditing] = useState(false);
+    const { id } = useParams(); // Get ID from URL
+    const currentUser = useUser(); // Get currently logged in user
+
+    // Data State
+    const [profileUser, setProfileUser] = useState(null);
+    const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Permission State
+    const [isOwnProfile, setIsOwnProfile] = useState(false);
+
+    // Edit Mode State (Owner Only)
+    const [isEditing, setIsEditing] = useState(false);
+    const [formData, setFormData] = useState({});
     const [saving, setSaving] = useState(false);
 
-    // Complex Form State to match Mongoose Schema
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        phoneNumber: "",
-        description: "",
-        address: { city: "", country: "" },
-        socialLinks: { facebook: "", instagram: "", website: "" }
-    });
+    // Review Form State (Visitor Only)
+    const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState("");
+    const [hoverStar, setHoverStar] = useState(0);
 
-    // 1. Load Fresh User Data from API
+    // 1. Load Data & Determine Permissions
     useEffect(() => {
-        const fetchProfile = async () => {
+        const fetchProfileData = async () => {
             try {
-                // We use getMe() to get full details including nested objects
-                const response = await userApi.getMe();
-                const userData = response.data; // Adjust based on your axios response structure
+                setLoading(true);
 
-                setUser(userData);
+                // Fetch the user details based on URL ID
+                const response = await userApi.getById(id);
+                const fetchedUser = response.data;
+                setProfileUser(fetchedUser);
 
-                // Initialize form with existing data or defaults
-                setFormData({
-                    name: userData.name || "",
-                    email: userData.email || "",
-                    phoneNumber: userData.phoneNumber || "",
-                    description: userData.description || "",
-                    address: {
-                        city: userData.address?.city || "",
-                        country: userData.address?.country || ""
-                    },
-                    socialLinks: {
-                        facebook: userData.socialLinks?.facebook || "",
-                        instagram: userData.socialLinks?.instagram || "",
-                        website: userData.socialLinks?.website || ""
-                    }
-                });
+                // Check permissions: Is the viewer the owner?
+                // We compare URL ID vs Token ID
+                const isMe = currentUser.id === fetchedUser._id || currentUser.id === id;
+                setIsOwnProfile(isMe);
+
+                // If it's me, prepopulate the edit form
+                if (isMe) {
+                    setFormData({
+                        name: fetchedUser.name || "",
+                        email: fetchedUser.email || "",
+                        phoneNumber: fetchedUser.phoneNumber || "",
+                        description: fetchedUser.description || "",
+                        address: {
+                            city: fetchedUser.address?.city || "",
+                            country: fetchedUser.address?.country || ""
+                        },
+                        socialLinks: {
+                            facebook: fetchedUser.socialLinks?.facebook || "",
+                            instagram: fetchedUser.socialLinks?.instagram || "",
+                            website: fetchedUser.socialLinks?.website || ""
+                        }
+                    });
+                }
+
+                // TODO: Fetch Real Reviews here
+                // const reviewsRes = await api.get(`/reviews/${id}`);
+                // setReviews(reviewsRes.data);
+
+                // MOCK REVIEWS for visualization
+                setReviews([
+                    { authorName: "Alice Walker", rating: 5, comment: "Great experience! Very professional." },
+                    { authorName: "Bob Smith", rating: 4, comment: "Good, but hard to reach by phone." }
+                ]);
+
             } catch (error) {
-                console.error("Failed to load profile", error);
+                console.error("Error loading profile:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchProfile();
-    }, []);
+        if (id && currentUser.id) {
+            fetchProfileData();
+        }
+    }, [id, currentUser.id]);
 
-    const handleLogout = () => {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("user");
-        window.location.href = "/auth"; // Or use router navigation
-    };
+    // --- HANDLERS FOR OWNER ---
 
-    // Handle Top Level Inputs
-    const handleChange = (e) => {
+    const handleEditChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Handle Nested Inputs (Address / Social)
     const handleNestedChange = (category, field, value) => {
         setFormData(prev => ({
             ...prev,
-            [category]: {
-                ...prev[category],
-                [field]: value
-            }
+            [category]: { ...prev[category], [field]: value }
         }));
     };
 
-    // 2. Handle Update Logic
-    const handleUpdate = async (e) => {
+    const handleUpdateProfile = async (e) => {
         e.preventDefault();
         setSaving(true);
-
         try {
-            // API Call
-            const res = await userApi.update(user._id, formData);
-            const updatedUser = res.data.user;
-
-            setUser(updatedUser); // Update UI
+            const res = await userApi.update(profileUser._id, formData);
+            setProfileUser(res.data.user); // Update UI with new data
             setIsEditing(false);
-
-            // Optional: Update LocalStorage if you use it for session persistence
-            // localStorage.setItem("user", JSON.stringify(updatedUser));
-
-            // alert("Profile Updated Successfully");
+            alert("Profile updated successfully!");
         } catch (error) {
-            console.error("Update failed:", error);
-            alert("Failed to update profile.");
+            alert("Failed to update profile");
         } finally {
             setSaving(false);
         }
     };
 
-    if (loading) return <div className="flex h-screen items-center justify-center text-slate-400">Loading Profile...</div>;
+    const handleRequestVerification = () => {
+        // Here you would call an API endpoint to upload ID
+        alert("Verification request sent to admin!");
+    };
 
-    const initials = user?.name
-        ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2)
-        : "U";
+    // --- HANDLERS FOR VISITOR ---
+
+    const handleSubmitReview = async (e) => {
+        e.preventDefault();
+        if (rating === 0) return alert("Please select a star rating!");
+
+        const newReview = {
+            authorName: currentUser.userName || "You",
+            rating: rating,
+            comment: comment
+        };
+
+        // TODO: Call API to save review
+        // await api.post(`/reviews`, { targetId: id, rating, comment });
+
+        // Optimistic UI Update
+        setReviews([newReview, ...reviews]);
+        setComment("");
+        setRating(0);
+        alert("Review submitted!");
+    };
+
+    if (loading) return <div className="flex h-screen items-center justify-center text-slate-400">Loading Profile...</div>;
+    if (!profileUser) return <div className="flex h-screen items-center justify-center text-slate-400">User not found</div>;
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans">
-            <Nav cartCount={0} userRole={user?.role} user={user?.name} />
+            <Nav cartCount={0} />
 
-            <div className="max-w-4xl mx-auto px-4 py-12">
+            <div className="max-w-6xl mx-auto px-4 py-12">
+
+                {/* ================= HEADER SECTION ================= */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100"
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 mb-8"
                 >
-                    {/* --- Header / Banner --- */}
                     <div className="h-48 bg-gradient-to-r from-indigo-600 to-purple-700 relative">
-                        {/* Edit Button Toggle */}
-                        <div className="absolute top-6 right-6 z-10">
-                            {!isEditing ? (
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="flex items-center gap-2 bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-white/30 transition-all shadow-lg"
-                                >
-                                    <FiEdit2 /> Edit Profile
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => setIsEditing(false)}
-                                    className="flex items-center gap-2 bg-rose-500/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-rose-600 transition-all shadow-lg"
-                                >
-                                    <FiX /> Cancel
-                                </button>
-                            )}
-                        </div>
+                        {/* OWNER ACTION: Edit Button */}
+                        {isOwnProfile && !isEditing && (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="absolute top-6 right-6 bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-white/30 transition-all flex items-center gap-2 shadow-lg"
+                            >
+                                <FiEdit2 /> Edit Profile
+                            </button>
+                        )}
 
                         {/* Avatar */}
                         <div className="absolute -bottom-16 left-8 md:left-12">
                             <div className="w-32 h-32 rounded-full bg-white p-1.5 shadow-2xl relative group">
                                 <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 text-4xl font-bold border border-slate-200 overflow-hidden">
-                                    {user.profilePictureUrl ? (
-                                        <img src={user.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
+                                    {profileUser.profilePictureUrl ? (
+                                        <img src={profileUser.profilePictureUrl} className="w-full h-full object-cover" alt="Avatar"/>
                                     ) : (
-                                        initials
+                                        profileUser.name[0]
                                     )}
                                 </div>
-                                {isEditing && (
-                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
-                                        <FiCamera size={28} />
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* --- Content Section --- */}
                     <div className="pt-20 pb-10 px-8 md:px-12">
+                        {/* Identity & Status */}
+                        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
+                                    {profileUser.name}
+                                    {profileUser.isVerified ? (
+                                        <div title="Verified" className="text-blue-500"><FiCheckCircle size={24} fill="currentColor" className="text-white bg-blue-500 rounded-full" /></div>
+                                    ) : (
+                                        isOwnProfile && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-bold rounded border border-slate-200">Unverified</span>
+                                    )}
+                                </h1>
+                                <p className="text-indigo-600 font-bold text-sm uppercase mt-1 tracking-wide">{profileUser.role}</p>
 
-                        <AnimatePresence mode="wait">
-                            {!isEditing ? (
-                                /* ================= VIEW MODE ================= */
-                                <motion.div
-                                    key="view"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="space-y-8"
+                                {/* Overall Rating Display */}
+                                <div className="flex items-center gap-1 mt-3 text-amber-400 bg-amber-50 w-fit px-3 py-1 rounded-full border border-amber-100">
+                                    <FiStar fill="currentColor" />
+                                    <span className="text-slate-800 font-bold">{profileUser.rating?.average || 0}</span>
+                                    <span className="text-slate-400 text-xs font-medium ml-1">({profileUser.rating?.count || 0} reviews)</span>
+                                </div>
+                            </div>
+
+                            {/* OWNER ACTION: Verification Button */}
+                            {isOwnProfile && !profileUser.isVerified && (
+                                <button
+                                    onClick={handleRequestVerification}
+                                    className="px-5 py-2.5 bg-slate-800 text-white rounded-xl font-semibold shadow-lg hover:bg-slate-900 transition-all flex items-center gap-2 text-sm"
                                 >
-                                    {/* Identity Block */}
-                                    <div>
-                                        <div className="flex items-center gap-3">
-                                            <h1 className="text-3xl font-bold text-slate-800">{user.name}</h1>
-                                            {/* Verification Badge */}
-                                            {user.isVerified ? (
-                                                <div title="Verified User" className="text-blue-500"><FiCheckCircle size={24} fill="currentColor" className="text-white bg-blue-500 rounded-full" /></div>
-                                            ) : (
-                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-bold rounded border border-slate-200">Unverified</span>
-                                            )}
-                                        </div>
-
-                                        <p className="text-slate-500 font-medium mt-1 flex items-center gap-2">
-                                            {user.email}
-                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                            <span className="capitalize text-indigo-600 font-bold text-sm">{user.role}</span>
-                                        </p>
-
-                                        {/* Bio / Description */}
-                                        {user.description && (
-                                            <p className="mt-4 text-slate-600 leading-relaxed max-w-2xl">
-                                                {user.description}
-                                            </p>
-                                        )}
-
-                                        {/* Location & Contact */}
-                                        <div className="flex flex-wrap gap-4 mt-4">
-                                            {(user.address?.city || user.address?.country) && (
-                                                <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                                                    <FiMapPin className="text-indigo-500" />
-                                                    {user.address?.city}, {user.address?.country}
-                                                </div>
-                                            )}
-                                            {user.phoneNumber && (
-                                                <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                                                    <FiPhone className="text-indigo-500" />
-                                                    {user.phoneNumber}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <hr className="border-slate-100" />
-
-                                    {/* Socials & Extras */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Connect</h3>
-                                            <div className="flex gap-3">
-                                                {user.socialLinks?.website && (
-                                                    <a href={user.socialLinks.website} target="_blank" rel="noreferrer" className="p-3 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-400 rounded-xl transition-colors border border-slate-100"><FiGlobe size={20}/></a>
-                                                )}
-                                                {user.socialLinks?.instagram && (
-                                                    <a href={user.socialLinks.instagram} target="_blank" rel="noreferrer" className="p-3 bg-slate-50 hover:bg-pink-50 hover:text-pink-600 text-slate-400 rounded-xl transition-colors border border-slate-100"><FiInstagram size={20}/></a>
-                                                )}
-                                                {user.socialLinks?.facebook && (
-                                                    <a href={user.socialLinks.facebook} target="_blank" rel="noreferrer" className="p-3 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-400 rounded-xl transition-colors border border-slate-100"><FiFacebook size={20}/></a>
-                                                )}
-                                                {(!user.socialLinks?.website && !user.socialLinks?.instagram && !user.socialLinks?.facebook) && (
-                                                    <p className="text-sm text-slate-400 italic">No social links added.</p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Account Status</h3>
-                                            <div className="flex items-center gap-3">
-                                                <div className="px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-bold rounded-xl border border-emerald-100 flex items-center gap-2">
-                                                    <FiShield /> Active
-                                                </div>
-                                                {/* Verification Button Concept */}
-                                                {!user.isVerified && (
-                                                    <button className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-xl border border-slate-200 transition-colors">
-                                                        Request Verification
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ) : (
-                                /* ================= EDIT MODE ================= */
-                                <motion.div
-                                    key="edit"
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                >
-                                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                                        {/* --- Personal Details --- */}
-                                        <div className="md:col-span-2">
-                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-4 border-b border-indigo-100 pb-2">Personal Details</h3>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <InputField label="Full Name" icon={<FiUser />} name="name" value={formData.name} onChange={handleChange} />
-                                            <InputField label="Email Address" icon={<FiMail />} name="email" value={formData.email} onChange={handleChange} />
-                                            <InputField label="Phone Number" icon={<FiPhone />} name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="+880..." />
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-2">Bio / Description</label>
-                                                <textarea
-                                                    name="description"
-                                                    value={formData.description}
-                                                    onChange={handleChange}
-                                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none font-medium text-sm h-[138px] resize-none"
-                                                    placeholder="Tell people about yourself..."
-                                                ></textarea>
-                                            </div>
-                                        </div>
-
-                                        {/* --- Location --- */}
-                                        <div className="md:col-span-2 mt-2">
-                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-4 border-b border-indigo-100 pb-2">Location</h3>
-                                        </div>
-
-                                        <InputField
-                                            label="City" icon={<FiMapPin />}
-                                            value={formData.address.city}
-                                            onChange={(e) => handleNestedChange('address', 'city', e.target.value)}
-                                        />
-                                        <InputField
-                                            label="Country" icon={<FiGlobe />}
-                                            value={formData.address.country}
-                                            onChange={(e) => handleNestedChange('address', 'country', e.target.value)}
-                                        />
-
-                                        {/* --- Social Links --- */}
-                                        <div className="md:col-span-2 mt-2">
-                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-4 border-b border-indigo-100 pb-2">Social Links</h3>
-                                        </div>
-
-                                        <InputField
-                                            label="Website URL" icon={<FiGlobe />}
-                                            value={formData.socialLinks.website}
-                                            onChange={(e) => handleNestedChange('socialLinks', 'website', e.target.value)}
-                                            placeholder="https://..."
-                                        />
-                                        <InputField
-                                            label="Instagram URL" icon={<FiInstagram />}
-                                            value={formData.socialLinks.instagram}
-                                            onChange={(e) => handleNestedChange('socialLinks', 'instagram', e.target.value)}
-                                            placeholder="https://instagram.com/..."
-                                        />
-                                        <div className="md:col-span-2">
-                                            <InputField
-                                                label="Facebook URL" icon={<FiFacebook />}
-                                                value={formData.socialLinks.facebook}
-                                                onChange={(e) => handleNestedChange('socialLinks', 'facebook', e.target.value)}
-                                                placeholder="https://facebook.com/..."
-                                            />
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="md:col-span-2 pt-6 flex gap-4 border-t border-slate-100 mt-4">
-                                            <button
-                                                type="submit"
-                                                disabled={saving}
-                                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center gap-2"
-                                            >
-                                                {saving ? "Saving..." : <><FiSave /> Save Changes</>}
-                                            </button>
-                                        </div>
-                                    </form>
-                                </motion.div>
+                                    <FiShield /> Request Verification
+                                </button>
                             )}
-                        </AnimatePresence>
+                        </div>
 
-                        {/* Logout Section */}
-                        <div className="mt-12 pt-8 border-t border-slate-100">
-                            <button
-                                onClick={handleLogout}
-                                className="w-full flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50 py-3 rounded-xl font-semibold transition-colors"
-                            >
-                                <FiLogOut /> Sign Out
-                            </button>
+                        {/* ================= DETAILS SECTION ================= */}
+                        <div className="mt-8">
+                            <AnimatePresence mode="wait">
+                                {!isEditing ? (
+                                    /* --- VIEW MODE --- */
+                                    <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <div className="md:col-span-2">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">About</h3>
+                                            <p className="text-slate-600 leading-relaxed text-lg">
+                                                {profileUser.description || <span className="italic text-slate-400">No bio added yet.</span>}
+                                            </p>
+
+                                            <div className="flex flex-wrap gap-3 mt-6">
+                                                {profileUser.address?.city && (
+                                                    <span className="flex items-center gap-2 text-slate-600 bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-100">
+                                                        <FiMapPin className="text-indigo-500"/> {profileUser.address.city}, {profileUser.address.country}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 h-fit">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Contact & Socials</h3>
+                                            <div className="space-y-4">
+                                                {profileUser.email && (
+                                                    <div className="flex items-center gap-3 text-slate-700 text-sm font-medium">
+                                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-indigo-500 shadow-sm border border-slate-100"><FiMail /></div>
+                                                        <span className="truncate">{profileUser.email}</span>
+                                                    </div>
+                                                )}
+                                                {profileUser.phoneNumber && (
+                                                    <div className="flex items-center gap-3 text-slate-700 text-sm font-medium">
+                                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100"><FiPhone /></div>
+                                                        <span>{profileUser.phoneNumber}</span>
+                                                    </div>
+                                                )}
+
+                                                <div className="pt-4 flex gap-2 border-t border-slate-200 mt-2">
+                                                    {profileUser.socialLinks?.website && <SocialIcon href={profileUser.socialLinks.website} icon={<FiGlobe />} />}
+                                                    {profileUser.socialLinks?.instagram && <SocialIcon href={profileUser.socialLinks.instagram} icon={<FiInstagram />} color="text-pink-600" />}
+                                                    {profileUser.socialLinks?.facebook && <SocialIcon href={profileUser.socialLinks.facebook} icon={<FiFacebook />} color="text-blue-600" />}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    /* --- EDIT MODE (Owner Only) --- */
+                                    <motion.div key="edit" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                                        <form onSubmit={handleUpdateProfile} className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h3 className="font-bold text-slate-700">Edit Details</h3>
+                                                <button type="button" onClick={() => setIsEditing(false)} className="text-rose-500 font-bold text-sm flex items-center gap-1 hover:bg-rose-50 px-3 py-1 rounded-lg transition-colors"><FiX /> Cancel</button>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-4">
+                                                    <InputField label="Full Name" name="name" value={formData.name} onChange={handleEditChange} icon={<FiUser />} />
+                                                    <InputField label="Phone" name="phoneNumber" value={formData.phoneNumber} onChange={handleEditChange} icon={<FiPhone />} />
+                                                    <InputField label="City" value={formData.address.city} onChange={(e) => handleNestedChange('address', 'city', e.target.value)} icon={<FiMapPin />} />
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <InputField label="Website" value={formData.socialLinks.website} onChange={(e) => handleNestedChange('socialLinks', 'website', e.target.value)} icon={<FiGlobe />} />
+                                                    <InputField label="Instagram" value={formData.socialLinks.instagram} onChange={(e) => handleNestedChange('socialLinks', 'instagram', e.target.value)} icon={<FiInstagram />} />
+                                                    <InputField label="Country" value={formData.address.country} onChange={(e) => handleNestedChange('address', 'country', e.target.value)} icon={<FiGlobe />} />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Bio</label>
+                                                    <textarea name="description" value={formData.description} onChange={handleEditChange} className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" rows="3" />
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-6 pt-6 border-t border-slate-200 flex justify-end">
+                                                <button type="submit" disabled={saving} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2">
+                                                    {saving ? "Saving..." : <><FiSave /> Save Changes</>}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </motion.div>
+
+                {/* ================= REVIEWS SECTION ================= */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                    {/* LEFT COLUMN: Review Form */}
+                    <div className="lg:col-span-1">
+                        {!isOwnProfile ? (
+                            // VISITOR: Show Rate Form
+                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 sticky top-24">
+                                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+                                    <FiMessageSquare className="text-indigo-500"/> Rate {profileUser.name}
+                                </h3>
+                                <form onSubmit={handleSubmitReview} className="space-y-4">
+                                    {/* Star Logic */}
+                                    <div className="flex justify-center gap-2 bg-slate-50 p-3 rounded-xl">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button
+                                                key={star} type="button"
+                                                className={`text-2xl transition-all ${star <= (hoverStar || rating) ? "text-amber-400 scale-110" : "text-slate-300"}`}
+                                                onClick={() => setRating(star)}
+                                                onMouseEnter={() => setHoverStar(star)}
+                                                onMouseLeave={() => setHoverStar(0)}
+                                            >
+                                                <FiStar fill={star <= (hoverStar || rating) ? "currentColor" : "none"} />
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <textarea
+                                        value={comment} onChange={(e) => setComment(e.target.value)}
+                                        placeholder="Share your experience working with this user..."
+                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[120px] resize-none"
+                                    ></textarea>
+
+                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
+                                        <FiSend /> Submit Review
+                                    </button>
+                                </form>
+                            </div>
+                        ) : (
+                            // OWNER: Show Status Card
+                            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-3xl border border-indigo-100 text-center">
+                                <h3 className="font-bold text-indigo-900 mb-2">Your Public Reputation</h3>
+                                <p className="text-indigo-700/70 text-sm mb-4">You cannot rate yourself. Here is what others see.</p>
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm text-indigo-600 font-bold">
+                                    <FiStar fill="currentColor" className="text-amber-400" />
+                                    {profileUser.rating?.average || 0} / 5.0
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* RIGHT COLUMN: Review List */}
+                    <div className="lg:col-span-2">
+                        <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            Reviews <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">{reviews.length}</span>
+                        </h3>
+
+                        {reviews.length > 0 ? (
+                            <div className="space-y-4">
+                                {reviews.map((review, index) => (
+                                    <motion.div
+                                        key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex gap-4 transition-hover hover:shadow-md"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0 text-lg">
+                                            {review.authorName ? review.authorName[0] : "A"}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <h4 className="font-bold text-slate-800">{review.authorName || "Anonymous"}</h4>
+                                                    <p className="text-xs text-slate-400">Verified Review</p>
+                                                </div>
+                                                <div className="flex text-amber-400 text-sm bg-amber-50 px-2 py-1 rounded-lg">
+                                                    {[...Array(5)].map((_, i) => (
+                                                        <FiStar key={i} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-slate-300"} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="text-slate-600 leading-relaxed text-sm">{review.comment}</p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4">
+                                    <FiMessageSquare size={28} />
+                                </div>
+                                <h4 className="text-slate-500 font-bold mb-1">No reviews yet</h4>
+                                <p className="text-slate-400 text-sm">Be the first to share your experience!</p>
+                            </div>
+                        )}
+                    </div>
+
+                </div>
             </div>
         </div>
     );
 }
 
-// Reusable Input Component to keep code clean
-const InputField = ({ label, icon, name, value, onChange, placeholder, type = "text" }) => (
+// Reusable Components to keep code clean
+const InputField = ({ label, icon, name, value, onChange }) => (
     <div>
         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{label}</label>
         <div className="relative">
-            <span className="absolute left-4 top-3.5 text-slate-400 text-lg">{icon}</span>
+            <span className="absolute left-4 top-3.5 text-slate-400">{icon}</span>
             <input
-                type={type}
-                name={name}
-                value={value}
-                onChange={onChange}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none font-medium text-slate-700"
-                placeholder={placeholder}
+                type="text" name={name} value={value} onChange={onChange}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
             />
         </div>
     </div>
+);
+
+const SocialIcon = ({ href, icon, color = "text-slate-500" }) => (
+    <a href={href} target="_blank" rel="noreferrer" className={`p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 hover:scale-105 transition-all shadow-sm ${color}`}>
+        {icon}
+    </a>
 );

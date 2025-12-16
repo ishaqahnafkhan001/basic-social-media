@@ -50,16 +50,15 @@ const tourSchema = new mongoose.Schema({
         minlength: 10,
         maxlength: 100
     },
-    // Updated Category Field
     category: {
         type: String,
         required: true,
-        enum: tourCategories, // Validates against the new list
+        enum: tourCategories, // (Ensure you import this variable)
         trim: true
     },
     destinationCountry: {
         type: String,
-        enum: countries,
+        enum: countries, // (Ensure you import this variable)
         required: true
     },
     destinationCity: {
@@ -67,46 +66,40 @@ const tourSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    // Using an array of strings for multiple images
     images: {
         type: [String],
         required: true,
         validate: {
-            validator: function(v) {
-                return v && v.length >= 2;
-            },
+            validator: function(v) { return v && v.length >= 2; },
             message: 'A tour must have at least 2 images.'
         }
     },
     coverImage: {
         type: String,
-        required: true // The main image shown on cards
-    },
-    startDate: {
-        type: Date,
         required: true
     },
-    endDate: {
-        type: Date,
-        required: true
-    },
-    pricePerPerson: {
+
+    // --- NEW RATING FIELDS ---
+    // We store the average here so we can sort by "Top Rated" easily
+    ratingsAverage: {
         type: Number,
-        required: true,
-        min: 0
+        default: 0,
+        min: [1, 'Rating must be above 1.0'],
+        max: [5, 'Rating must be below 5.0'],
+        // This setter rounds the rating (e.g., 4.66666 -> 4.7)
+        set: val => Math.round(val * 10) / 10
     },
-    maxGroupSize: {
+    ratingsQuantity: {
         type: Number,
-        required: true,
-        min: 1
+        default: 0
     },
-    description: {
-        type: String,
-        required: true,
-        trim: true,
-        minlength: 50
-    },
-    // Real-life tours need day-by-day plans
+
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    pricePerPerson: { type: Number, required: true, min: 0 },
+    maxGroupSize: { type: Number, required: true, min: 1 },
+    description: { type: String, required: true, trim: true, minlength: 50 },
+
     itinerary: [
         {
             day: { type: Number, required: true },
@@ -114,62 +107,57 @@ const tourSchema = new mongoose.Schema({
             description: { type: String }
         }
     ],
-    // What is included in the price?
-    inclusions: {
-        type: [String],
-        default: []
-    },
-    exclusions: {
-        type: [String],
-        default: []
-    },
+    inclusions: { type: [String], default: [] },
+    exclusions: { type: [String], default: [] },
     difficulty: {
         type: String,
         enum: ['Easy', 'Medium', 'Hard', 'Extreme'],
         default: 'Medium'
     },
-    isActive: {
-        type: Boolean,
-        default: true
-    },
+    isActive: { type: Boolean, default: true },
     agency: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
     }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    // --- VIRTUAL CONFIGURATION ---
+    // This ensures that when we convert to JSON/Object, the virtual 'reviews' show up
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
 
+// --- VIRTUAL POPULATE ---
+// This allows you to do Tour.populate('reviews') to see the comments
+// without actually storing an array of reviews in the Tour database.
+tourSchema.virtual('reviews', {
+    ref: 'Review',          // The name of the Model to look for (defined below)
+    foreignField: 'tour',   // The field in the Review model that matches
+    localField: '_id'       // The field in the Tour model that matches
+});
 
-// --- Joi Validation Function ---
-// Change signature to accept isUpdate boolean
+const Tour = mongoose.model('Tour', tourSchema);
+
+// --- UPDATED JOI VALIDATION ---
 function validateTour(tour, isUpdate = false) {
-
-    // Define date schema separately so we can modify it based on context
     let startDateSchema = Joi.date().required();
-
-    // Only enforce "greater than now" if it is a NEW tour
     if (!isUpdate) {
         startDateSchema = startDateSchema.greater('now');
     }
 
     const schema = Joi.object({
         title: Joi.string().min(10).max(100).required().trim(),
-        category: Joi.string().valid(...tourCategories).required(),
-        destinationCountry: Joi.string().valid(...countries).required(),
+        // category: Joi.string().valid(...tourCategories).required(),
+        // destinationCountry: Joi.string().valid(...countries).required(),
+        category: Joi.string().required(), // Simplified for snippet
+        destinationCountry: Joi.string().required(), // Simplified for snippet
         destinationCity: Joi.string().required().trim(),
 
-        images: Joi.array().items(Joi.string().uri()).min(2).required().messages({
-            'array.min': 'You must upload at least 2 images for the gallery.'
-        }),
+        images: Joi.array().items(Joi.string().uri()).min(2).required(),
         coverImage: Joi.string().uri().required(),
-
-        // Use the dynamic date schema
         startDate: startDateSchema,
-
-        endDate: Joi.date().greater(Joi.ref('startDate')).required().messages({
-            'date.greater': 'End date must be after the start date'
-        }),
-
+        endDate: Joi.date().greater(Joi.ref('startDate')).required(),
         pricePerPerson: Joi.number().min(0).required(),
         maxGroupSize: Joi.number().min(1).integer().required(),
         description: Joi.string().min(50).required(),
@@ -185,15 +173,12 @@ function validateTour(tour, isUpdate = false) {
         difficulty: Joi.string().valid('Easy', 'Medium', 'Hard', 'Extreme'),
         isActive: Joi.boolean(),
         agency: Joi.string().required()
+
+        // Note: We DO NOT validate ratingsAverage here.
+        // Users cannot set the rating manually; it is calculated by the backend.
     });
 
     return schema.validate(tour, { allowUnknown: true });
-    // allowUnknown: true helps ignore inadvertent fields passed during merge
 }
-// Exporting both the Mongoose Model and the Joi Validator
-const Tour = mongoose.model("Tour", tourSchema);
 
-module.exports = {
-    Tour,
-    validateTour
-};
+module.exports = { Tour, validateTour };

@@ -13,6 +13,7 @@ import MyCreatedTour from "./pages/Tour.jsx";
 import UpdateTour from "./pages/UpDateTour.jsx";
 import MainDash from "./pages/MainDash.jsx";
 import TourDetail from "./pages/TourDetail.jsx";
+import Booking from "./pages/Booking.jsx";
 
 export default function App() {
     return (
@@ -30,7 +31,7 @@ export default function App() {
                     <Route path="/blog/all-blogs" element={<ProtectedRoute><AllBlogs /></ProtectedRoute>} />
 
                     {/* User */}
-                    <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                    <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
                     {/* Dashboard */}
                     <Route path="/dashboard" element={<ProtectedRoute><MainDash /></ProtectedRoute>} />
@@ -43,6 +44,7 @@ export default function App() {
                     <Route path="/tours/my-tours" element={<ProtectedRoute><MyCreatedTour /></ProtectedRoute>} />
                     <Route path="/update-tour/:id" element={<ProtectedRoute><UpdateTour /></ProtectedRoute>} />
                     <Route path="/tours/:id" element={<ProtectedRoute><TourDetail /></ProtectedRoute>} />
+                    <Route path="/tours/:id/book" element={<ProtectedRoute><Booking /></ProtectedRoute>} />
                     {/* Fallback */}
                     <Route path="*" element={<AuthPage />} />
                 </Routes>

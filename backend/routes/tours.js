@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-
+const reviewRouter = require('./reviews'); // Import your review routes
 // Import the controller functions
 const {
     createTour,
@@ -47,5 +47,6 @@ router.put('/:id', authMiddleware, isAgency, updateTour);
 // DELETE /api/tours/:id
 // (Delete a tour - Only the Owner Agency)
 router.delete('/:id', authMiddleware, isAgency, deleteTour);
+router.use('/:tourId/reviews', reviewRouter);
 
 module.exports = router;

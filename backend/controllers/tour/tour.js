@@ -1,5 +1,5 @@
-const { Tour, validateTour } = require('../../models/tour');
-
+const { Tour, validateTour } = require('../../models/tour/tour');
+const { Review,validateReview } = require('../../models/reviews/reviews');
 // --------------------- 1. Create Tour ---------------------
 const createTour = async (req, res) => {
     try {
@@ -88,7 +88,11 @@ const getAllTours = async (req, res) => {
 const getTourById = async (req, res) => {
     try {
         const tour = await Tour.findById(req.params.id)
-            .populate('agency', 'name email avatar');
+            .populate('agency', 'name email') // Get Agency details
+            .populate({
+                path: 'reviews', // <--- CRITICAL: Get the reviews!
+                select: 'review rating user createdAt name profilePictureUrl' // Optional: select specific fields
+            });
 
         if (!tour) return res.status(404).json({ success: false, message: "Tour not found" });
 
@@ -101,7 +105,6 @@ const getTourById = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
-
 // --------------------- 4. Update Tour ---------------------
 const updateTour = async (req, res) => {
     try {

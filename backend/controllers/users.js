@@ -67,45 +67,70 @@ const getUsers = async (req, res) => {
 // GET SINGLE USER
 const getUser = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id).select("-password");
+        // 1. Fetch the user
+        let user = await User.findById(req.params.id).select("-password").lean(); // .lean() converts Mongoose obj to plain JS object so we can edit it
+
         if (!user) return res.status(404).json({ message: "User not found" });
+
+        // 2. CHECK PERMISSIONS
+        // Who is asking? (req.user might be undefined if guest)
+        const viewerId = req.user ? req.user.id : null;
+        const viewerRole = req.user ? req.user.role : 'guest';
+        const isOwner = viewerId === user._id.toString();
+        const isAdmin = viewerRole === 'admin';
+
+        // 3. PRIVACY LOGIC
+        // If the profile belongs to a normal 'user' (not agency),
+        // AND the viewer is NOT the owner OR admin...
+        // HIDE sensitive details.
+        if (user.role === 'user' && !isOwner && !isAdmin) {
+            delete user.email;
+            delete user.phoneNumber;
+            delete user.address;
+            // Keep name, bio, image, and social links public
+        }
+
+        // (Agencies usually WANT their phone number public, so we don't delete it for them)
 
         res.json(user);
 
     } catch (err) {
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Server error" });
     }
 };
-
 // UPDATE USER
 const updateUser = async (req, res) => {
     try {
-        // SECURITY: Remove sensitive fields from req.body so users can't hack them
-        delete req.body.role;           // Prevent self-promotion to admin
-        delete req.body.isVerified;     // Prevent fake verification
-        delete req.body.verificationData;
-        delete req.body.rating;         // Ratings must come from reviews
-
-        // Handle Password Update specifically
-        if (req.body.password) {
-            req.body.password = await bcrypt.hash(req.body.password, 10);
+        // 1. AUTH CHECK: "Are you who you say you are?"
+        // req.user.id comes from the Token. req.params.id comes from the URL.
+        if (req.user.id !== req.params.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                message: "Access denied. You can only edit your own profile."
+            });
         }
 
-        const updated = await User.findByIdAndUpdate(
+        // 2. INPUT SANITIZATION: "Don't let them promote themselves."
+        // Malicious users will try to send { "role": "admin" } or { "isVerified": true }
+        const safeUpdates = { ...req.body };
+        delete safeUpdates.role;            // Block role changes
+        delete safeUpdates.isVerified;      // Block verification hacking
+        delete safeUpdates.verificationData;// Block ID upload bypass
+        delete safeUpdates.rating;          // Ratings come from reviews only
+        delete safeUpdates.password;        // Passwords should use a separate endpoint
+
+        // 3. SAFE UPDATE
+        const updatedUser = await User.findByIdAndUpdate(
             req.params.id,
-            { $set: req.body }, // Using $set is safer for nested objects like address/socialLinks
-            { new: true }
-        ).select("-password");
+            { $set: safeUpdates },
+            { new: true, runValidators: true }
+        ).select("-password"); // Never return the password hash
 
-        if (!updated) return res.status(404).json({ message: "User not found" });
-
-        res.json({ message: "User updated", user: updated });
+        res.json({ message: "Profile updated", user: updatedUser });
 
     } catch (err) {
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Server error" });
     }
 };
-
 // LOGIN USER
 const loginUser = async (req, res) => {
     try {

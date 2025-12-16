@@ -5,26 +5,36 @@ const tourApi = {
     // PUBLIC ROUTES
     // ==============================
 
-    // GET /api/tours (Get all tours with optional filters/pagination)
+    // GET /api/tours
     getAll: (params) => api.get("/tours", { params }),
 
-    // GET /api/tours/:id (Get single tour details)
+    // GET /api/tours/:id
     getById: (id) => api.get(`/tours/${id}`),
+
+    // ==============================
+    // REVIEW ROUTES (New)
+    // ==============================
+
+    // POST /api/tours/:id/reviews
+    // (Or /api/reviews depending on how you mounted the route)
+    // This assumes you set up the nested route I suggested earlier
+    addReview: (tourId, reviewData) => api.post(`/tours/${tourId}/reviews`, reviewData),
 
     // ==============================
     // AGENCY ROUTES (Protected)
     // ==============================
 
-    // GET /api/tours/agency/my-tours (Get tours belonging to logged-in agency)
+    // GET /api/tours/agency/my-tours
     getMyTours: () => api.get("/tours/agency/my-tours"),
 
-    // POST /api/tours (Create a new tour)
+    // POST /api/tours
     create: (data) => api.post("/tours", data),
 
-    // PATCH /api/tours/:id (Update a tour - Backend uses PATCH)
+    // PUT /api/tours/:id
+    // (Updated comment: Backend uses PUT)
     update: (id, data) => api.put(`/tours/${id}`, data),
 
-    // DELETE /api/tours/:id (Delete a tour)
+    // DELETE /api/tours/:id
     remove: (id) => api.delete(`/tours/${id}`),
 };
 
