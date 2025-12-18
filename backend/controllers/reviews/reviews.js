@@ -1,72 +1,73 @@
 const { Review, validateReview } = require('../../models/reviews/reviews');
-const { Tour } = require('../../models/tour/tour'); // Adjust path to your Tour model
-const { User } = require('../../models/user/user'); // Adjust path to your User model
+const { Tour } = require('../../models/tour/tour');
+const { User } = require('../../models/user/user');
 
 // --- 1. CREATE REVIEW ---
 const createReview = async (req, res) => {
     try {
-        // 1. Prepare Data
-        // If the tour ID is in the URL (e.g., /tours/:tourId/reviews), use it.
-        // Otherwise, look for it in the body.
-        const tourId = req.body.tour || req.params.tourId;
-        const userId = req.user.id; // From authMiddleware
+        const tourId = req.params.tourId || req.body.tour;
+        const targetUserId = req.params.userId || req.body.targetUser;
 
-        // Construct the data object for validation and creation
+        if (!tourId && !targetUserId) {
+            return res.status(400).json({ message: "Review must target a Tour or a User." });
+        }
+
         const reviewData = {
             review: req.body.review,
             rating: req.body.rating,
-            tour: tourId,
-            user: userId
+            user: req.user.id,
         };
 
-        // 2. Validate
+        if (tourId) reviewData.tour = tourId;
+        if (targetUserId) reviewData.targetUser = targetUserId;
+
         const { error } = validateReview(reviewData);
         if (error) return res.status(400).json({ message: error.details[0].message });
 
-        // 3. Check if Tour exists
-        const tour = await Tour.findById(tourId);
-        if (!tour) return res.status(404).json({ message: "Tour not found" });
+        // Create the review
+        let newReview = await Review.create(reviewData);
 
-        // 4. Create & Save
-        // Note: The 'post save' hook in the Review model will automatically
-        // recalculate the average rating for the Tour.
-        const newReview = await Review.create(reviewData);
+        // 🔥 CRITICAL FIX: Populate the user immediately after creation
+        // so the frontend receives { user: { name: "..." } } instead of { user: "ID" }
+        newReview = await newReview.populate({
+            path: 'user',
+            select: 'name profilePictureUrl'
+        });
 
         res.status(201).json({
+            success: true,
             message: "Review submitted successfully",
             data: newReview
         });
 
     } catch (err) {
-        // Handle Duplicate Review Error (MongoDB code 11000)
-        if (err.code === 11000) {
-            return res.status(409).json({ message: "You have already reviewed this tour." });
-        }
-        console.error("Create Review Error:", err);
+
         res.status(500).json({ message: "Internal server error" });
     }
 };
 
-// --- 2. GET ALL REVIEWS (Usually for a specific Tour) ---
+// --- 2. GET REVIEWS ---
 const getReviews = async (req, res) => {
     try {
         let filter = {};
-        // If tourId is provided in params, filter by it
         if (req.params.tourId) filter = { tour: req.params.tourId };
+        if (req.params.userId) filter = { targetUser: req.params.userId };
 
         const reviews = await Review.find(filter)
             .populate({
-                path: 'user',
-                select: 'name profilePictureUrl' // Only get name and image of reviewer
+                path: 'user', // <--- This turns the ID string into an Object
+                select: 'name profilePictureUrl'
             })
-            .sort({ createdAt: -1 }); // Newest first
+            .sort({ createdAt: -1 });
 
         res.json({
+            success: true,
             results: reviews.length,
             data: reviews
         });
 
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -75,32 +76,22 @@ const getReviews = async (req, res) => {
 const deleteReview = async (req, res) => {
     try {
         const review = await Review.findById(req.params.id);
+        if (!review) return res.status(404).json({ message: "Review not found" });
 
-        if (!review) {
-            return res.status(404).json({ message: "Review not found" });
-        }
-
-        // Check Permissions:
-        // Only the author OR an admin can delete
         if (review.user.toString() !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ message: "You are not authorized to delete this review." });
+            return res.status(403).json({ message: "Not authorized." });
         }
 
         await Review.findByIdAndDelete(req.params.id);
 
-        // IMPORTANT: We must trigger the calculation again manually or use findOneAndDelete middleware
-        // Ideally, call the static method on the Model to update stats
-        await Review.calcAverageRatings(review.tour);
+        // Update stats
+        if (review.tour) await Review.calcAverageRatings(review.tour, 'tour');
+        else if (review.targetUser) await Review.calcAverageRatings(review.targetUser, 'user');
 
-        res.json({ message: "Review deleted successfully" });
-
+        res.json({ success: true, message: "Review deleted successfully" });
     } catch (err) {
         res.status(500).json({ message: "Internal server error" });
     }
 };
 
-module.exports = {
-    createReview,
-    getReviews,
-    deleteReview
-};
+module.exports = { createReview, getReviews, deleteReview };

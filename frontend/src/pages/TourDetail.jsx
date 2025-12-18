@@ -2,21 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     MapPin, Clock, Calendar, Users, Star, CheckCircle,
-    XCircle, User, Award, ArrowLeft, Heart, Share2, MessageSquare, Send, ThumbsUp
+    XCircle, User, Award, ArrowLeft, MessageSquare, Send
 } from 'lucide-react';
 import Nav from '../components/nav/Nav.jsx';
 import tourApi from '../api/tourApi';
-import reviewApi from '../api/reviewApi'; // IMPORTS REVIEW API
-import useUser from '../hooks/userInfo.js';   // IMPORTS USER HOOK
+import reviewApi from '../api/reviewApi';
+import useUser from '../hooks/userInfo.js';
 
-// Helper Functions
+// ... (Helper functions remain the same) ...
 const formatDate = (dateString) => {
     if (!dateString) return 'TBA';
     return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric', month: 'short', day: 'numeric'
     });
 };
-
 const calculateDuration = (start, end) => {
     if (!start || !end) return 1;
     const s = new Date(start);
@@ -27,74 +26,68 @@ const calculateDuration = (start, end) => {
 const TourDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user, isLoggedIn } = useUser(); // Get current user info
+    const { user, isLoggedIn } = useUser();
 
     const [tour, setTour] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeImage, setActiveImage] = useState(null);
 
-    // --- REAL REVIEW STATE ---
-    const [tourReviews, setTourReviews] = useState([]);
+    // --- REVIEWS STATE ---
+    const [tourReviews, setTourReviews] = useState([]);   // Reviews for THIS TOUR
+    const [agencyReviews, setAgencyReviews] = useState([]); // Reviews for the AGENCY (Sidebar)
+
     const [userRating, setUserRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [userComment, setUserComment] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        const fetchTourDetails = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
+
+                // 1. Get Tour Details
                 const response = await tourApi.getById(id);
-                // Ensure we handle the response structure correctly
                 const data = response.data.data || response.data;
-
                 setTour(data);
-
-                // Set Reviews from the Virtual Populate field (data.reviews)
-                // If your backend getById populates 'reviews', they will be here.
                 setTourReviews(data.reviews || []);
-
                 setActiveImage(data.coverImage || (data.images && data.images[0]));
+
+                // 2. Get Agency Reviews (For the sidebar)
+                if (data.agency?._id) {
+                    try {
+                        const agencyRes = await reviewApi.getAllByUser(data.agency._id);
+                        setAgencyReviews(agencyRes.data.data || []);
+                    } catch (err) {
+                        console.log("Could not fetch agency reviews");
+                    }
+                }
+
             } catch (err) {
-                console.error("Error fetching tour:", err);
+                console.error("Error fetching data:", err);
                 setError("Could not load tour details.");
             } finally {
                 setLoading(false);
             }
         };
 
-        if (id) fetchTourDetails();
+        if (id) fetchData();
     }, [id]);
 
-    // --- REAL SUBMIT HANDLER ---
     const handleSubmitReview = async (e) => {
         e.preventDefault();
-
-        // 1. Validation
         if (!isLoggedIn) return alert("You must be logged in to leave a review.");
         if (userRating === 0) return alert("Please click a star to rate.");
         if (!userComment.trim()) return alert("Please write a short review.");
 
         setIsSubmitting(true);
-
         try {
-            // 2. Call Backend
-            const payload = {
-                rating: userRating,
-                review: userComment,
-                tour: id
-            };
-            console.log(payload)
+            const payload = { rating: userRating, review: userComment, tour: id };
+            const res = await reviewApi.createForTour(id, payload);
 
-            // We expect the backend to return the created review
-            const res = await reviewApi.create(id, payload);
-            console.log(res)
-            // 3. Optimistic UI Update
-            // We construct a review object that looks like the populated one
-            // so it displays immediately without refreshing.
             const newReview = {
-                _id: res.data.data?._id || Date.now(), // Use backend ID or fallback
+                _id: res.data.data?._id || Date.now(),
                 user: {
                     _id: user.id || user._id,
                     name: user.name || "You",
@@ -105,21 +98,15 @@ const TourDetail = () => {
                 createdAt: new Date().toISOString()
             };
 
-            // Add to top of list
             setTourReviews([newReview, ...tourReviews]);
-
-            // 4. Reset Form
             setUserRating(0);
             setUserComment("");
             alert("Review submitted successfully!");
-
         } catch (err) {
-            console.error("Review failed", err);
-            // Handle duplicate review error specifically
             if (err.response && err.response.status === 409) {
                 alert("You have already reviewed this tour.");
             } else {
-                alert("Failed to submit review. Please try again.");
+                alert("Failed to submit review.");
             }
         } finally {
             setIsSubmitting(false);
@@ -133,18 +120,18 @@ const TourDetail = () => {
     const uniqueImages = [...new Set(allImages)];
     const duration = calculateDuration(tour.startDate, tour.endDate);
 
-    // Safely handle Agency Data
+    // --- AGENCY DATA ---
     const agencyName = tour.agency?.name || "Partner Agency";
     const agencyId = tour.agency?._id || tour.agency?.id;
+    const agencyPhoto = tour.agency?.profilePictureUrl;
+    // Use the agency's stats, defaulting to 0 if new
+    const agencyRating = tour.agency?.ratingsAverage || 0;
+    const agencyReviewCount = tour.agency?.ratingsQuantity || 0;
 
-    // Calculate rating for display (use backend aggregates if available)
+    // Tour Stats
     const displayRating = tour.ratingsAverage || 0;
     const displayCount = tour.ratingsQuantity || tourReviews.length;
-// This creates a simple array of strings: ["John Doe", "Alice Smith", "Bob"]
-    const namesOnly = tourReviews.map(review => review.user || "Anonymous");
-    console.log(tourReviews)
 
-    // console.log(namesOnly.useUser().initials.);
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
             <Nav />
@@ -161,7 +148,6 @@ const TourDetail = () => {
 
                     {/* LEFT COLUMN: Main Content */}
                     <div className="lg:col-span-2 space-y-8">
-
                         {/* Header */}
                         <div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -185,17 +171,12 @@ const TourDetail = () => {
                         {/* Gallery */}
                         <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
                             <div className="aspect-video w-full overflow-hidden rounded-xl mb-2 relative">
-                                <img
-                                    src={activeImage}
-                                    alt={tour.title}
-                                    className="w-full h-full object-cover transition-all duration-500"
-                                />
+                                <img src={activeImage} alt={tour.title} className="w-full h-full object-cover transition-all duration-500" />
                             </div>
                             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                                 {uniqueImages.map((img, index) => (
                                     <button
-                                        key={index}
-                                        onClick={() => setActiveImage(img)}
+                                        key={index} onClick={() => setActiveImage(img)}
                                         className={`w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-lg overflow-hidden border-2 transition ${activeImage === img ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-transparent opacity-70 hover:opacity-100'}`}
                                     >
                                         <img src={img} alt={`Thumbnail ${index}`} className="w-full h-full object-cover" />
@@ -204,7 +185,7 @@ const TourDetail = () => {
                             </div>
                         </div>
 
-                        {/* Stats */}
+                        {/* Stats Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
                                 <Clock className="w-6 h-6 text-indigo-600 mb-2" />
@@ -224,19 +205,14 @@ const TourDetail = () => {
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
                                 <Award className="w-6 h-6 text-indigo-600 mb-2" />
                                 <span className="text-xs text-slate-500 uppercase font-bold">Difficulty</span>
-                                <span className={`font-semibold ${
-                                    tour.difficulty === 'Easy' ? 'text-green-600' :
-                                        tour.difficulty === 'Medium' ? 'text-yellow-600' : 'text-red-600'
-                                }`}>{tour.difficulty}</span>
+                                <span className={`font-semibold ${tour.difficulty === 'Easy' ? 'text-green-600' : tour.difficulty === 'Medium' ? 'text-yellow-600' : 'text-red-600'}`}>{tour.difficulty}</span>
                             </div>
                         </div>
 
                         {/* Description */}
                         <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-100">
                             <h3 className="text-xl font-bold text-slate-900 mb-4">About this Tour</h3>
-                            <p className="text-slate-600 leading-relaxed whitespace-pre-line">
-                                {tour.description}
-                            </p>
+                            <p className="text-slate-600 leading-relaxed whitespace-pre-line">{tour.description}</p>
                         </div>
 
                         {/* Itinerary */}
@@ -246,9 +222,7 @@ const TourDetail = () => {
                                 <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
                                     {tour.itinerary.map((item, index) => (
                                         <div key={index} className="relative flex items-start group">
-                                            <div className="absolute left-0 top-1 h-10 w-10 flex items-center justify-center rounded-full bg-indigo-50 border-2 border-indigo-600 z-10 font-bold text-indigo-700">
-                                                {item.day}
-                                            </div>
+                                            <div className="absolute left-0 top-1 h-10 w-10 flex items-center justify-center rounded-full bg-indigo-50 border-2 border-indigo-600 z-10 font-bold text-indigo-700">{item.day}</div>
                                             <div className="ml-16 w-full">
                                                 <h4 className="text-lg font-bold text-slate-800 mb-1">{item.title}</h4>
                                                 <p className="text-slate-600 text-sm leading-relaxed">{item.description}</p>
@@ -259,50 +233,35 @@ const TourDetail = () => {
                             </div>
                         )}
 
-                        {/* Inclusions */}
+                        {/* Inclusions/Exclusions */}
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                    <CheckCircle className="w-5 h-5 text-green-500" /> What's Included
-                                </h3>
+                                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><CheckCircle className="w-5 h-5 text-green-500" /> What's Included</h3>
                                 <ul className="space-y-3">
                                     {tour.inclusions && tour.inclusions.map((inc, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-slate-600 text-sm">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 shrink-0"></span>
-                                            {inc}
-                                        </li>
+                                        <li key={i} className="flex items-start gap-3 text-slate-600 text-sm"><span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 shrink-0"></span>{inc}</li>
                                     ))}
                                 </ul>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                    <XCircle className="w-5 h-5 text-red-500" /> Not Included
-                                </h3>
+                                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><XCircle className="w-5 h-5 text-red-500" /> Not Included</h3>
                                 <ul className="space-y-3">
                                     {tour.exclusions && tour.exclusions.map((exc, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-slate-600 text-sm">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 shrink-0"></span>
-                                            {exc}
-                                        </li>
+                                        <li key={i} className="flex items-start gap-3 text-slate-600 text-sm"><span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 shrink-0"></span>{exc}</li>
                                     ))}
                                 </ul>
                             </div>
                         </div>
 
-                        {/* ========================================================= */}
-                        {/* REVIEW SYSTEM (CONNECTED TO BACKEND)                      */}
-                        {/* ========================================================= */}
+                        {/* TOUR REVIEWS SECTION */}
                         <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-100" id="reviews-section">
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                                    <MessageSquare className="w-6 h-6 text-indigo-600" /> Reviews ({tourReviews.length})
-                                </h3>
+                                <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-indigo-600" /> Reviews ({tourReviews.length})</h3>
                             </div>
 
-                            {/* 1. Review Form (Only if logged in) */}
+                            {/* Review Form */}
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
                                 <h4 className="text-lg font-bold text-slate-800 mb-3">Leave a Review</h4>
-
                                 {!isLoggedIn ? (
                                     <div className="text-center py-4">
                                         <p className="text-slate-500 mb-2">Please log in to share your experience.</p>
@@ -314,59 +273,29 @@ const TourDetail = () => {
                                             <span className="text-sm font-semibold text-slate-500">Your Rating:</span>
                                             <div className="flex gap-1">
                                                 {[1, 2, 3, 4, 5].map((star) => (
-                                                    <button
-                                                        key={star}
-                                                        type="button"
-                                                        className="transition-transform hover:scale-110 focus:outline-none"
-                                                        onClick={() => setUserRating(star)}
-                                                        onMouseEnter={() => setHoverRating(star)}
-                                                        onMouseLeave={() => setHoverRating(0)}
-                                                    >
-                                                        <Star
-                                                            className={`w-7 h-7 transition-colors duration-200 ${
-                                                                star <= (hoverRating || userRating)
-                                                                    ? "fill-yellow-400 text-yellow-400"
-                                                                    : "fill-transparent text-slate-300"
-                                                            }`}
-                                                        />
+                                                    <button key={star} type="button" className="transition-transform hover:scale-110 focus:outline-none" onClick={() => setUserRating(star)} onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)}>
+                                                        <Star className={`w-7 h-7 transition-colors duration-200 ${star <= (hoverRating || userRating) ? "fill-yellow-400 text-yellow-400" : "fill-transparent text-slate-300"}`} />
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
-
-                                        <textarea
-                                            value={userComment}
-                                            onChange={(e) => setUserComment(e.target.value)}
-                                            placeholder="Share details of your experience..."
-                                            className="w-full p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none min-h-[120px] mb-4 text-slate-700 bg-white"
-                                        ></textarea>
-
-                                        <button
-                                            type="submit"
-                                            disabled={isSubmitting}
-                                            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
-                                        >
+                                        <textarea value={userComment} onChange={(e) => setUserComment(e.target.value)} placeholder="Share details of your experience..." className="w-full p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none min-h-[120px] mb-4 text-slate-700 bg-white"></textarea>
+                                        <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200">
                                             {isSubmitting ? "Submitting..." : <><Send className="w-4 h-4" /> Post Review</>}
                                         </button>
                                     </form>
                                 )}
                             </div>
 
-                            {/* 2. Reviews List */}
+                            {/* Review List */}
                             <div className="space-y-6">
                                 {tourReviews.length > 0 ? (
                                     tourReviews.map((review) => (
                                         <div key={review._id || review.id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
                                             <div className="flex items-start gap-4">
-                                                {/* Avatar Circle */}
                                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-700 font-bold shrink-0 border border-white shadow-sm overflow-hidden">
-                                                    {review.user?.profilePictureUrl ? (
-                                                        <img src={review.user.profilePictureUrl} alt="User" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        review.user?.name?.charAt(0) || "U"
-                                                    )}
+                                                    {review.user?.profilePictureUrl ? <img src={review.user.profilePictureUrl} alt="User" className="w-full h-full object-cover" /> : review.user?.name?.charAt(0) || "U"}
                                                 </div>
-
                                                 <div className="flex-1">
                                                     <div className="flex justify-between items-start">
                                                         <div>
@@ -374,34 +303,22 @@ const TourDetail = () => {
                                                             <span className="text-xs text-slate-400 font-medium">{formatDate(review.createdAt)}</span>
                                                         </div>
                                                         <div className="flex bg-yellow-50 px-2 py-1 rounded-md">
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <Star
-                                                                    key={i}
-                                                                    className={`w-3.5 h-3.5 ${
-                                                                        i < review.rating ? "fill-yellow-400 text-yellow-400" : "fill-slate-200 text-slate-200"
-                                                                    }`}
-                                                                />
-                                                            ))}
+                                                            {[...Array(5)].map((_, i) => <Star key={i} className={`w-3.5 h-3.5 ${i < review.rating ? "fill-yellow-400 text-yellow-400" : "fill-slate-200 text-slate-200"}`} />)}
                                                         </div>
                                                     </div>
-                                                    <p className="text-slate-600 mt-2 leading-relaxed text-sm">
-                                                        {review.review || review.text}
-                                                    </p>
+                                                    <p className="text-slate-600 mt-2 leading-relaxed text-sm">{review.review || review.text}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-8 text-slate-400">
-                                        No reviews yet. Be the first to review!
-                                    </div>
+                                    <div className="text-center py-8 text-slate-400">No reviews yet. Be the first to review!</div>
                                 )}
                             </div>
                         </div>
-
                     </div>
 
-                    {/* RIGHT COLUMN: Sticky Booking Card */}
+                    {/* RIGHT COLUMN: Sticky Booking Card & Agency Card */}
                     <div className="lg:col-span-1">
                         <div className="sticky top-24 space-y-6">
 
@@ -424,26 +341,29 @@ const TourDetail = () => {
                                         <span className="text-slate-800 font-medium flex items-center gap-2"><Calendar className="w-4 h-4 text-indigo-500" />{formatDate(tour.endDate)}</span>
                                     </div>
                                 </div>
-                                <Link to={`/tours/${tour._id}/book`} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300">
+                                <Link to={`/tours/${tour._id}/book`} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 block text-center">
                                     Book This Tour
                                 </Link>
-                                <p className="text-center text-xs text-slate-400 mt-4">
-                                    Free cancellation up to 48 hours before departure.
-                                </p>
+                                <p className="text-center text-xs text-slate-400 mt-4">Free cancellation up to 48 hours before departure.</p>
                             </div>
 
-                            {/* Agency Card */}
+                            {/* AGENCY CARD (UPDATED TO SHOW AGENCY STATS) */}
                             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                                 <div className="p-6 flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl shrink-0">
-                                        {agencyName.charAt(0).toUpperCase()}
+                                    <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl shrink-0 overflow-hidden">
+                                        {agencyPhoto ? (
+                                            <img src={agencyPhoto} alt={agencyName} className="w-full h-full object-cover"/>
+                                        ) : (
+                                            agencyName.charAt(0).toUpperCase()
+                                        )}
                                     </div>
                                     <div className="flex-1">
                                         <span className="text-xs text-slate-400 font-bold uppercase block">Organized by</span>
                                         <h4 className="text-slate-800 font-bold text-lg leading-tight">{agencyName}</h4>
                                         <div className="flex items-center gap-1 mt-1">
                                             <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                                            <span className="text-sm font-bold text-slate-700">{displayRating}</span>
+                                            <span className="text-sm font-bold text-slate-700">{agencyRating}</span>
+                                            <span className="text-xs text-slate-400">({agencyReviewCount})</span>
                                         </div>
                                     </div>
                                     <Link to={`/profile/${agencyId}`} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
@@ -456,18 +376,25 @@ const TourDetail = () => {
                                         <MessageSquare className="w-3 h-3" /> Recent Agency Reviews
                                     </h5>
 
-                                    {/* Sidebar Reviews - Just taking the first 2 from the current list */}
+                                    {/* Sidebar Reviews - FETCHED SPECIFICALLY FOR AGENCY */}
                                     <div className="space-y-4">
-                                        {tourReviews.length > 0 ? tourReviews.slice(0, 2).map((review) => (
+                                        {agencyReviews.length > 0 ? agencyReviews.slice(0, 2).map((review) => (
                                             <div key={review._id || review.id} className="flex gap-3 items-start">
-                                                <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
-                                                    {review.user?.name?.charAt(0) || "U"}
+                                                <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0 overflow-hidden">
+                                                    {review.user?.profilePictureUrl ?
+                                                        <img src={review.user.profilePictureUrl} className="w-full h-full object-cover" /> :
+                                                        (review.user?.name?.charAt(0) || "U")
+                                                    }
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed line-clamp-2">"{review.review || review.text}"</p>
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        <Star className="w-2 h-2 text-amber-400 fill-amber-400"/>
+                                                        <span className="text-[10px] text-slate-400">{review.rating}/5</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )) : <p className="text-xs text-slate-400 italic">No reviews yet.</p>}
+                                        )) : <p className="text-xs text-slate-400 italic">No reviews for this agency yet.</p>}
                                     </div>
                                 </div>
                             </div>

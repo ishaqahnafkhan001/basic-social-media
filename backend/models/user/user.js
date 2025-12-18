@@ -52,17 +52,16 @@ const userSchema = new mongoose.Schema({
     }],
 
     // --- Rating System ---
-    rating: {
-        average: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 5
-        },
-        count: {
-            type: Number,
-            default: 0
-        }
+    ratingsAverage: {
+        type: Number,
+        default: 0,
+        min: [0, 'Rating must be above 0'],
+        max: [5, 'Rating must be below 5.0'],
+        set: val => Math.round(val * 10) / 10 // Rounds 4.6666 to 4.7
+    },
+    ratingsQuantity: {
+        type: Number,
+        default: 0
     },
 
     // --- Verification & Security ---
@@ -79,6 +78,8 @@ const userSchema = new mongoose.Schema({
         subscriptionExpiresAt: {
             type: Date // To track the monthly payment status
         },
+        stripeCustomerId: { type: String },
+        stripeSubscriptionId: { type: String },
         documentType: {
             type: String,
             enum: ['nid', 'passport', 'other']

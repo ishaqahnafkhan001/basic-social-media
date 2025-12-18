@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
     FiPlus, FiList, FiLogOut, FiX, FiLayout, FiPieChart,
-    FiSettings, FiMap, FiTag, FiCalendar, FiUsers, FiShield, FiFileText,
+    FiSettings, FiMap, FiTag, FiCalendar, FiUsers, FiShield, FiFileText,FiBookOpen,FiClipboard
 } from "react-icons/fi";
 import { MdOutlineTour } from "react-icons/md";
 import useUser from "../../hooks/userInfo.js";
@@ -16,6 +16,8 @@ const MENU_ROLES = {
         { id: "myBlog", label: "My Blog", icon: <FiFileText />, path: "/blog/myBlogs" },
         { id: "create", label: "Create blog", icon: <FiPlus />, path: "/create-blog" },
         { id: "settings", label: "Settings", icon: <FiSettings />, path: "#" },
+        { id: "booking", label: "Booking", icon: <FiBookOpen />, path: "#" },
+
     ],
     agency: [
         { id: "dashboard", label: "Dashboard", icon: <FiPieChart />, path: "/dashboard" },
@@ -27,6 +29,9 @@ const MENU_ROLES = {
         { id: "add-offers", label: "Add Offers", icon: <FiTag />, path: "#" },
         { id: "booking", label: "Booking", icon: <FiCalendar />, path: "#" },
         { id: "settings", label: "Settings", icon: <FiSettings />, path: "#" },
+        { id: "order", label: "Order", icon: <FiSettings />, path: "#" },
+
+
     ],
     admin: [
         { id: "dashboard", label: "Dashboard", icon: <FiPieChart />, path: "/dashboard" },

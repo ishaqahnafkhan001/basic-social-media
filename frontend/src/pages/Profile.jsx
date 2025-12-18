@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate,Link } from "react-router-dom";
 import {
     FiUser, FiMail, FiMapPin, FiPhone, FiGlobe, FiInstagram, FiFacebook,
-    FiCheckCircle, FiStar, FiEdit2, FiSave, FiX, FiCamera, FiShield, FiMessageSquare, FiSend
+    FiCheckCircle, FiStar, FiEdit2, FiSave, FiX, FiShield, FiMessageSquare, FiSend,
+    FiLogOut, FiCamera
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import toast, { Toaster } from 'react-hot-toast'; // Import Toast
+
 import userApi from "../api/userApi";
+import reviewApi from "../api/reviewApi";
 import Nav from "../components/nav/Nav";
-import useUser from "../hooks/userInfo.js"; // Use your custom hook
+import useUser from "../hooks/userInfo.js";
 
 export default function Profile() {
-    const { id } = useParams(); // Get ID from URL
-    const currentUser = useUser(); // Get currently logged in user
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const currentUser = useUser();
 
     // Data State
     const [profileUser, setProfileUser] = useState(null);
@@ -21,37 +26,41 @@ export default function Profile() {
     // Permission State
     const [isOwnProfile, setIsOwnProfile] = useState(false);
 
-    // Edit Mode State (Owner Only)
+    // Edit Mode & Form State
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({});
     const [saving, setSaving] = useState(false);
 
-    // Review Form State (Visitor Only)
+    // Image Upload State
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
+
+    // Review Form State
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [hoverStar, setHoverStar] = useState(0);
+    const [submittingReview, setSubmittingReview] = useState(false);
 
-    // 1. Load Data & Determine Permissions
+    // 1. Load Data
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
                 setLoading(true);
 
-                // Fetch the user details based on URL ID
+                // A. Fetch User Details
                 const response = await userApi.getById(id);
                 const fetchedUser = response.data;
                 setProfileUser(fetchedUser);
 
-                // Check permissions: Is the viewer the owner?
-                // We compare URL ID vs Token ID
+                // Check permissions
                 const isMe = currentUser.id === fetchedUser._id || currentUser.id === id;
                 setIsOwnProfile(isMe);
 
-                // If it's me, prepopulate the edit form
+                // Prepopulate edit form
                 if (isMe) {
                     setFormData({
                         name: fetchedUser.name || "",
-                        email: fetchedUser.email || "",
+                        email: fetchedUser.email || "", // Email usually read-only, but kept for reference
                         phoneNumber: fetchedUser.phoneNumber || "",
                         description: fetchedUser.description || "",
                         address: {
@@ -66,29 +75,26 @@ export default function Profile() {
                     });
                 }
 
-                // TODO: Fetch Real Reviews here
-                // const reviewsRes = await api.get(`/reviews/${id}`);
-                // setReviews(reviewsRes.data);
-
-                // MOCK REVIEWS for visualization
-                setReviews([
-                    { authorName: "Alice Walker", rating: 5, comment: "Great experience! Very professional." },
-                    { authorName: "Bob Smith", rating: 4, comment: "Good, but hard to reach by phone." }
-                ]);
+                // B. Fetch Reviews
+                try {
+                    const reviewsRes = await reviewApi.getAllByUser(id);
+                    setReviews(reviewsRes.data.data || reviewsRes.data || []);
+                } catch (reviewErr) {
+                    setReviews([]);
+                }
 
             } catch (error) {
                 console.error("Error loading profile:", error);
+                toast.error("Could not load profile data");
             } finally {
                 setLoading(false);
             }
         };
 
-        if (id && currentUser.id) {
-            fetchProfileData();
-        }
+        if (id) fetchProfileData();
     }, [id, currentUser.id]);
 
-    // --- HANDLERS FOR OWNER ---
+    // --- HANDLERS ---
 
     const handleEditChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -101,54 +107,134 @@ export default function Profile() {
         }));
     };
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setSelectedFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
+        }
+    };
+
+    const handleLogout = () => {
+        if (window.confirm("Are you sure you want to log out?")) {
+            localStorage.removeItem("token");
+            toast.success("Logged out successfully");
+            setTimeout(() => {
+                navigate("/auth");
+                window.location.reload();
+            }, 1000);
+        }
+    };
+
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
+
+        const loadingToast = toast.loading("Updating profile...");
         setSaving(true);
+
         try {
-            const res = await userApi.update(profileUser._id, formData);
-            setProfileUser(res.data.user); // Update UI with new data
+            // Prepare FormData for file upload
+            const data = new FormData();
+            data.append("name", formData.name);
+            data.append("phoneNumber", formData.phoneNumber);
+            data.append("description", formData.description);
+
+            // Nested objects must be stringified for FormData
+            data.append("address", JSON.stringify(formData.address));
+            data.append("socialLinks", JSON.stringify(formData.socialLinks));
+
+            if (selectedFile) {
+                data.append("profilePicture", selectedFile);
+            }
+
+            const res = await userApi.update(profileUser._id, data);
+
+            setProfileUser(res.data.user || res.data);
             setIsEditing(false);
-            alert("Profile updated successfully!");
+            setSelectedFile(null); // Clear file input
+
+            toast.dismiss(loadingToast);
+            toast.success("Profile updated successfully!");
         } catch (error) {
-            alert("Failed to update profile");
+            console.error(error);
+            toast.dismiss(loadingToast);
+            toast.error("Failed to update profile.");
         } finally {
             setSaving(false);
         }
     };
 
-    const handleRequestVerification = () => {
-        // Here you would call an API endpoint to upload ID
-        alert("Verification request sent to admin!");
-    };
-
-    // --- HANDLERS FOR VISITOR ---
-
     const handleSubmitReview = async (e) => {
         e.preventDefault();
-        if (rating === 0) return alert("Please select a star rating!");
+        if (!currentUser.isLoggedIn) return toast.error("You must be logged in to review.");
+        if (rating === 0) return toast.error("Please select a star rating!");
+        if (!comment.trim()) return toast.error("Please write a comment!");
 
-        const newReview = {
-            authorName: currentUser.userName || "You",
-            rating: rating,
-            comment: comment
-        };
+        const loadingToast = toast.loading("Submitting review...");
+        setSubmittingReview(true);
 
-        // TODO: Call API to save review
-        // await api.post(`/reviews`, { targetId: id, rating, comment });
+        try {
+            const payload = { rating: rating, review: comment };
+            const res = await reviewApi.createForUser(id, payload);
 
-        // Optimistic UI Update
-        setReviews([newReview, ...reviews]);
-        setComment("");
-        setRating(0);
-        alert("Review submitted!");
+            const newReview = res.data.data || {
+                _id: Date.now(),
+                rating,
+                review: comment,
+                user: {
+                    name: currentUser.userName || "You",
+                    profilePictureUrl: currentUser.user?.profilePictureUrl
+                },
+                createdAt: new Date().toISOString()
+            };
+
+            setReviews([newReview, ...reviews]);
+
+            // Update UI stats locally
+            setProfileUser(prev => {
+                const currentAvg = prev.ratingsAverage || 0;
+                const currentCount = prev.ratingsQuantity || 0;
+                const newCount = currentCount + 1;
+                const newAvg = ((currentAvg * currentCount) + rating) / newCount;
+
+                return {
+                    ...prev,
+                    ratingsQuantity: newCount,
+                    ratingsAverage: Math.round(newAvg * 10) / 10
+                };
+            });
+
+            setComment("");
+            setRating(0);
+
+            toast.dismiss(loadingToast);
+            toast.success("Review submitted successfully!");
+
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            toast.error(error.response?.data?.message || "Failed to submit review.");
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    const handleRequestVerification = () => {
+        toast.success("Verification request sent to admin!");
     };
 
     if (loading) return <div className="flex h-screen items-center justify-center text-slate-400">Loading Profile...</div>;
     if (!profileUser) return <div className="flex h-screen items-center justify-center text-slate-400">User not found</div>;
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 font-sans">
-            <Nav cartCount={0} />
+            <Nav />
+            {/* TOASTER COMPONENT */}
+            <Toaster position="top-center" reverseOrder={false} />
 
             <div className="max-w-6xl mx-auto px-4 py-12">
 
@@ -158,24 +244,45 @@ export default function Profile() {
                     className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 mb-8"
                 >
                     <div className="h-48 bg-gradient-to-r from-indigo-600 to-purple-700 relative">
-                        {/* OWNER ACTION: Edit Button */}
-                        {isOwnProfile && !isEditing && (
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="absolute top-6 right-6 bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-white/30 transition-all flex items-center gap-2 shadow-lg"
-                            >
-                                <FiEdit2 /> Edit Profile
-                            </button>
+                        {isOwnProfile && (
+                            <div className="absolute top-6 right-6 flex gap-3">
+                                {/* LOGOUT */}
+                                <button
+                                    onClick={handleLogout}
+                                    className="bg-rose-500/20 backdrop-blur-md text-white px-4 py-2.5 rounded-full text-sm font-bold hover:bg-rose-500 transition-all flex items-center gap-2 shadow-lg border border-white/20"
+                                >
+                                    <FiLogOut /> Logout
+                                </button>
+
+                                {/* EDIT TOGGLE */}
+                                {!isEditing && (
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-white/30 transition-all flex items-center gap-2 shadow-lg border border-white/20"
+                                    >
+                                        <FiEdit2 /> Edit Profile
+                                    </button>
+                                )}
+                            </div>
                         )}
 
-                        {/* Avatar */}
                         <div className="absolute -bottom-16 left-8 md:left-12">
+                            {/* AVATAR + UPLOAD OVERLAY */}
                             <div className="w-32 h-32 rounded-full bg-white p-1.5 shadow-2xl relative group">
-                                <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 text-4xl font-bold border border-slate-200 overflow-hidden">
-                                    {profileUser.profilePictureUrl ? (
+                                <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 text-4xl font-bold border border-slate-200 overflow-hidden relative">
+                                    {previewUrl ? (
+                                        <img src={previewUrl} className="w-full h-full object-cover" alt="Preview"/>
+                                    ) : profileUser.profilePictureUrl ? (
                                         <img src={profileUser.profilePictureUrl} className="w-full h-full object-cover" alt="Avatar"/>
                                     ) : (
-                                        profileUser.name[0]
+                                        profileUser.name ? profileUser.name[0].toUpperCase() : "U"
+                                    )}
+
+                                    {isEditing && (
+                                        <label htmlFor="profile-upload" className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <FiCamera className="text-white text-3xl drop-shadow-md" />
+                                            <input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                        </label>
                                     )}
                                 </div>
                             </div>
@@ -183,7 +290,6 @@ export default function Profile() {
                     </div>
 
                     <div className="pt-20 pb-10 px-8 md:px-12">
-                        {/* Identity & Status */}
                         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
@@ -196,37 +302,33 @@ export default function Profile() {
                                 </h1>
                                 <p className="text-indigo-600 font-bold text-sm uppercase mt-1 tracking-wide">{profileUser.role}</p>
 
-                                {/* Overall Rating Display */}
                                 <div className="flex items-center gap-1 mt-3 text-amber-400 bg-amber-50 w-fit px-3 py-1 rounded-full border border-amber-100">
                                     <FiStar fill="currentColor" />
-                                    <span className="text-slate-800 font-bold">{profileUser.rating?.average || 0}</span>
-                                    <span className="text-slate-400 text-xs font-medium ml-1">({profileUser.rating?.count || 0} reviews)</span>
+                                    <span className="text-slate-800 font-bold">{profileUser.ratingsAverage || 0}</span>
+                                    <span className="text-slate-400 text-xs font-medium ml-1">({profileUser.ratingsQuantity || 0} reviews)</span>
                                 </div>
                             </div>
 
-                            {/* OWNER ACTION: Verification Button */}
                             {isOwnProfile && !profileUser.isVerified && (
-                                <button
-                                    onClick={handleRequestVerification}
+                                <Link
+                                    to="/request"
                                     className="px-5 py-2.5 bg-slate-800 text-white rounded-xl font-semibold shadow-lg hover:bg-slate-900 transition-all flex items-center gap-2 text-sm"
                                 >
                                     <FiShield /> Request Verification
-                                </button>
+                                </Link>
                             )}
                         </div>
 
-                        {/* ================= DETAILS SECTION ================= */}
+                        {/* CONTENT AREA */}
                         <div className="mt-8">
                             <AnimatePresence mode="wait">
                                 {!isEditing ? (
-                                    /* --- VIEW MODE --- */
                                     <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                         <div className="md:col-span-2">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">About</h3>
                                             <p className="text-slate-600 leading-relaxed text-lg">
                                                 {profileUser.description || <span className="italic text-slate-400">No bio added yet.</span>}
                                             </p>
-
                                             <div className="flex flex-wrap gap-3 mt-6">
                                                 {profileUser.address?.city && (
                                                     <span className="flex items-center gap-2 text-slate-600 bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-100">
@@ -235,23 +337,11 @@ export default function Profile() {
                                                 )}
                                             </div>
                                         </div>
-
                                         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 h-fit">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Contact & Socials</h3>
                                             <div className="space-y-4">
-                                                {profileUser.email && (
-                                                    <div className="flex items-center gap-3 text-slate-700 text-sm font-medium">
-                                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-indigo-500 shadow-sm border border-slate-100"><FiMail /></div>
-                                                        <span className="truncate">{profileUser.email}</span>
-                                                    </div>
-                                                )}
-                                                {profileUser.phoneNumber && (
-                                                    <div className="flex items-center gap-3 text-slate-700 text-sm font-medium">
-                                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100"><FiPhone /></div>
-                                                        <span>{profileUser.phoneNumber}</span>
-                                                    </div>
-                                                )}
-
+                                                {profileUser.email && <div className="flex items-center gap-3 text-slate-700 text-sm font-medium"><div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-indigo-500 shadow-sm border border-slate-100"><FiMail /></div><span className="truncate">{profileUser.email}</span></div>}
+                                                {profileUser.phoneNumber && <div className="flex items-center gap-3 text-slate-700 text-sm font-medium"><div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100"><FiPhone /></div><span>{profileUser.phoneNumber}</span></div>}
                                                 <div className="pt-4 flex gap-2 border-t border-slate-200 mt-2">
                                                     {profileUser.socialLinks?.website && <SocialIcon href={profileUser.socialLinks.website} icon={<FiGlobe />} />}
                                                     {profileUser.socialLinks?.instagram && <SocialIcon href={profileUser.socialLinks.instagram} icon={<FiInstagram />} color="text-pink-600" />}
@@ -261,12 +351,21 @@ export default function Profile() {
                                         </div>
                                     </motion.div>
                                 ) : (
-                                    /* --- EDIT MODE (Owner Only) --- */
                                     <motion.div key="edit" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                                         <form onSubmit={handleUpdateProfile} className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                                             <div className="flex justify-between items-center mb-6">
                                                 <h3 className="font-bold text-slate-700">Edit Details</h3>
-                                                <button type="button" onClick={() => setIsEditing(false)} className="text-rose-500 font-bold text-sm flex items-center gap-1 hover:bg-rose-50 px-3 py-1 rounded-lg transition-colors"><FiX /> Cancel</button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setIsEditing(false); setPreviewUrl(null); setSelectedFile(null); }}
+                                                    className="text-rose-500 font-bold text-sm flex items-center gap-1 hover:bg-rose-50 px-3 py-1 rounded-lg transition-colors"
+                                                >
+                                                    <FiX /> Cancel
+                                                </button>
+                                            </div>
+
+                                            <div className="mb-4 text-center p-3 bg-indigo-50 rounded-xl text-indigo-700 text-sm">
+                                                Tip: Click the camera icon on your profile picture above to change it!
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -285,7 +384,6 @@ export default function Profile() {
                                                     <textarea name="description" value={formData.description} onChange={handleEditChange} className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" rows="3" />
                                                 </div>
                                             </div>
-
                                             <div className="mt-6 pt-6 border-t border-slate-200 flex justify-end">
                                                 <button type="submit" disabled={saving} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2">
                                                     {saving ? "Saving..." : <><FiSave /> Save Changes</>}
@@ -301,106 +399,74 @@ export default function Profile() {
 
                 {/* ================= REVIEWS SECTION ================= */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                    {/* LEFT COLUMN: Review Form */}
+                    {/* Review Form */}
                     <div className="lg:col-span-1">
                         {!isOwnProfile ? (
-                            // VISITOR: Show Rate Form
                             <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 sticky top-24">
                                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
                                     <FiMessageSquare className="text-indigo-500"/> Rate {profileUser.name}
                                 </h3>
                                 <form onSubmit={handleSubmitReview} className="space-y-4">
-                                    {/* Star Logic */}
                                     <div className="flex justify-center gap-2 bg-slate-50 p-3 rounded-xl">
                                         {[1, 2, 3, 4, 5].map((star) => (
-                                            <button
-                                                key={star} type="button"
-                                                className={`text-2xl transition-all ${star <= (hoverStar || rating) ? "text-amber-400 scale-110" : "text-slate-300"}`}
-                                                onClick={() => setRating(star)}
-                                                onMouseEnter={() => setHoverStar(star)}
-                                                onMouseLeave={() => setHoverStar(0)}
-                                            >
+                                            <button key={star} type="button" className={`text-2xl transition-all ${star <= (hoverStar || rating) ? "text-amber-400 scale-110" : "text-slate-300"}`} onClick={() => setRating(star)} onMouseEnter={() => setHoverStar(star)} onMouseLeave={() => setHoverStar(0)}>
                                                 <FiStar fill={star <= (hoverStar || rating) ? "currentColor" : "none"} />
                                             </button>
                                         ))}
                                     </div>
-
-                                    <textarea
-                                        value={comment} onChange={(e) => setComment(e.target.value)}
-                                        placeholder="Share your experience working with this user..."
-                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[120px] resize-none"
-                                    ></textarea>
-
-                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
-                                        <FiSend /> Submit Review
+                                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share your experience working with this user..." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[120px] resize-none"></textarea>
+                                    <button type="submit" disabled={submittingReview} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+                                        {submittingReview ? "Submitting..." : <><FiSend /> Submit Review</>}
                                     </button>
                                 </form>
                             </div>
                         ) : (
-                            // OWNER: Show Status Card
                             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-3xl border border-indigo-100 text-center">
                                 <h3 className="font-bold text-indigo-900 mb-2">Your Public Reputation</h3>
                                 <p className="text-indigo-700/70 text-sm mb-4">You cannot rate yourself. Here is what others see.</p>
                                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm text-indigo-600 font-bold">
                                     <FiStar fill="currentColor" className="text-amber-400" />
-                                    {profileUser.rating?.average || 0} / 5.0
+                                    {profileUser.ratingsAverage || 0} / 5.0
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* RIGHT COLUMN: Review List */}
+                    {/* Review List */}
                     <div className="lg:col-span-2">
-                        <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            Reviews <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">{reviews.length}</span>
-                        </h3>
-
+                        <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">Reviews <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">{reviews.length}</span></h3>
                         {reviews.length > 0 ? (
                             <div className="space-y-4">
                                 {reviews.map((review, index) => (
-                                    <motion.div
-                                        key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex gap-4 transition-hover hover:shadow-md"
-                                    >
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0 text-lg">
-                                            {review.authorName ? review.authorName[0] : "A"}
+                                    <motion.div key={review._id || index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex gap-4 transition-hover hover:shadow-md">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0 text-lg overflow-hidden">
+                                            {review.user?.profilePictureUrl ? (<img src={review.user.profilePictureUrl} alt="User" className="w-full h-full object-cover" />) : (review.user?.name ? review.user.name[0].toUpperCase() : "A")}
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <h4 className="font-bold text-slate-800">{review.authorName || "Anonymous"}</h4>
-                                                    <p className="text-xs text-slate-400">Verified Review</p>
-                                                </div>
-                                                <div className="flex text-amber-400 text-sm bg-amber-50 px-2 py-1 rounded-lg">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <FiStar key={i} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-slate-300"} />
-                                                    ))}
-                                                </div>
+                                                <div><h4 className="font-bold text-slate-800">{review.user?.name || "Anonymous"}</h4><div className="flex items-center gap-2"><p className="text-xs text-slate-400">{formatDate(review.createdAt)}</p></div></div>
+                                                <div className="flex text-amber-400 text-sm bg-amber-50 px-2 py-1 rounded-lg">{[...Array(5)].map((_, i) => (<FiStar key={i} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-slate-300"} />))}</div>
                                             </div>
-                                            <p className="text-slate-600 leading-relaxed text-sm">{review.comment}</p>
+                                            <p className="text-slate-600 leading-relaxed text-sm">{review.review || review.comment}</p>
                                         </div>
                                     </motion.div>
                                 ))}
                             </div>
                         ) : (
                             <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200">
-                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4">
-                                    <FiMessageSquare size={28} />
-                                </div>
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4"><FiMessageSquare size={28} /></div>
                                 <h4 className="text-slate-500 font-bold mb-1">No reviews yet</h4>
                                 <p className="text-slate-400 text-sm">Be the first to share your experience!</p>
                             </div>
                         )}
                     </div>
-
                 </div>
             </div>
         </div>
     );
 }
 
-// Reusable Components to keep code clean
+// Helper Components
 const InputField = ({ label, icon, name, value, onChange }) => (
     <div>
         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{label}</label>

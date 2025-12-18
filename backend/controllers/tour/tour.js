@@ -88,10 +88,11 @@ const getAllTours = async (req, res) => {
 const getTourById = async (req, res) => {
     try {
         const tour = await Tour.findById(req.params.id)
-            .populate('agency', 'name email') // Get Agency details
+            // 👇 UPDATE THIS LINE: Add 'ratingsAverage' and 'ratingsQuantity'
+            .populate('agency', 'name email profilePictureUrl ratingsAverage ratingsQuantity')
             .populate({
-                path: 'reviews', // <--- CRITICAL: Get the reviews!
-                select: 'review rating user createdAt name profilePictureUrl' // Optional: select specific fields
+                path: 'reviews',
+                populate: { path: 'user', select: 'name profilePictureUrl' }
             });
 
         if (!tour) return res.status(404).json({ success: false, message: "Tour not found" });

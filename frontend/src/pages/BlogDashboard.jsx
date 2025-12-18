@@ -111,11 +111,8 @@ export default function BlogDashboard() {
     const clearSearch = () => setSearchTerm("");
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
-            {/* Top Navigation */}
-            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200">
-                <Nav cartCount={0} userRole={role} />
-            </div>
+        <div className="min-h-screen bg-slate-50 font-sans pb-12">
+            <Nav/>
 
             <div className="flex flex-1 max-w-[1920px] mx-auto w-full relative">
 
@@ -151,7 +148,7 @@ export default function BlogDashboard() {
                                 onClick={() => setSidebarOpen(true)}
                                 className="md:hidden p-2 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-sm active:scale-95 transition"
                             >
-                                <FiMenu size={20} />
+                                <FiMenu size={20}/>
                             </button>
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
@@ -166,7 +163,8 @@ export default function BlogDashboard() {
                         {/* Search & Actions */}
                         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                             <div className="relative group w-full sm:w-64">
-                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                <FiSearch
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors"/>
                                 <input
                                     type="text"
                                     value={searchTerm}
@@ -179,7 +177,7 @@ export default function BlogDashboard() {
                                         onClick={clearSearch}
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                                     >
-                                        <FiX size={14} />
+                                        <FiX size={14}/>
                                     </button>
                                 )}
                             </div>
@@ -199,19 +197,19 @@ export default function BlogDashboard() {
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20"
                     >
                         {loading ? (
-                            <LoadingState />
+                            <LoadingState/>
                         ) : posts.length === 0 ? (
-                            <EmptyState />
+                            <EmptyState/>
                         ) : filteredPosts.length === 0 ? (
-                            <NoResultsState query={searchTerm} onClear={clearSearch} />
+                            <NoResultsState query={searchTerm} onClear={clearSearch}/>
                         ) : (
                             filteredPosts.map((post) => (
                                 <motion.div
                                     key={post._id}
                                     layout
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.2 }}
+                                    initial={{opacity: 0, scale: 0.95}}
+                                    animate={{opacity: 1, scale: 1}}
+                                    transition={{duration: 0.2}}
                                 >
                                     <PostCard
                                         post={post}

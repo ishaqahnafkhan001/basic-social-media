@@ -1,6 +1,7 @@
 const { User, validateUser } = require('../models/user/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const cloudinary = require("../config/cloudinary");
 
 // CREATE USER
 const createUser = async (req, res) => {
@@ -101,33 +102,40 @@ const getUser = async (req, res) => {
 // UPDATE USER
 const updateUser = async (req, res) => {
     try {
-        // 1. AUTH CHECK: "Are you who you say you are?"
-        // req.user.id comes from the Token. req.params.id comes from the URL.
         if (req.user.id !== req.params.id && req.user.role !== 'admin') {
-            return res.status(403).json({
-                message: "Access denied. You can only edit your own profile."
-            });
+            return res.status(403).json({ message: "Access denied." });
         }
 
-        // 2. INPUT SANITIZATION: "Don't let them promote themselves."
-        // Malicious users will try to send { "role": "admin" } or { "isVerified": true }
         const safeUpdates = { ...req.body };
-        delete safeUpdates.role;            // Block role changes
-        delete safeUpdates.isVerified;      // Block verification hacking
-        delete safeUpdates.verificationData;// Block ID upload bypass
-        delete safeUpdates.rating;          // Ratings come from reviews only
-        delete safeUpdates.password;        // Passwords should use a separate endpoint
+        delete safeUpdates.role;
+        delete safeUpdates.isVerified;
+        delete safeUpdates.verificationData;
+        delete safeUpdates.rating;
+        delete safeUpdates.password;
 
-        // 3. SAFE UPDATE
+        // ✅ Image Upload Logic (Only here now)
+        if (req.file && req.file.path) {
+            safeUpdates.profilePictureUrl = req.file.path;
+        }
+
+        // Parse nested JSON if sent via FormData
+        if (typeof safeUpdates.address === 'string') {
+            try { safeUpdates.address = JSON.parse(safeUpdates.address); } catch(e) {}
+        }
+        if (typeof safeUpdates.socialLinks === 'string') {
+            try { safeUpdates.socialLinks = JSON.parse(safeUpdates.socialLinks); } catch(e) {}
+        }
+
         const updatedUser = await User.findByIdAndUpdate(
             req.params.id,
             { $set: safeUpdates },
             { new: true, runValidators: true }
-        ).select("-password"); // Never return the password hash
+        ).select("-password");
 
         res.json({ message: "Profile updated", user: updatedUser });
 
     } catch (err) {
+        console.error("Update Error:", err);
         res.status(500).json({ message: "Server error" });
     }
 };

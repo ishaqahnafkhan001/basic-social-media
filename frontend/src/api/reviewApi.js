@@ -2,25 +2,31 @@ import api from "./axiosClient";
 
 const reviewApi = {
     // ==============================
-    // PUBLIC ROUTES
+    // TOUR REVIEWS
     // ==============================
 
     // GET /api/tours/:tourId/reviews
-    // Fetch all reviews for a specific tour
     getAllByTour: (tourId) => api.get(`/tours/${tourId}/reviews`),
 
+    // POST /api/tours/:tourId/reviews
+    createForTour: (tourId, payload) => api.post(`/tours/${tourId}/reviews`, payload),
+
     // ==============================
-    // PROTECTED ROUTES (Login Required)
+    // USER / AGENCY REVIEWS (NEW)
     // ==============================
 
-    // POST /api/tours/:tourId/reviews
-    // Add a review to a tour
-    // payload should be: { rating: 5, review: "Great trip!" }
-    create: (tourId, payload) => api.post(`/tours/${tourId}/reviews`, payload),
+    // GET /api/users/:userId/reviews
+    // (Ensure your backend has this route, or use /reviews?user=ID)
+    getAllByUser: (userId) => api.get(`/users/${userId}/reviews`),
+
+    // POST /api/users/:userId/reviews
+    createForUser: (userId, payload) => api.post(`/users/${userId}/reviews`, payload),
+
+    // ==============================
+    // GENERAL
+    // ==============================
 
     // DELETE /api/reviews/:id
-    // Delete a review (User deletes their own, or Admin deletes any)
-    // Note: This endpoint is usually direct, not nested under tours
     remove: (reviewId) => api.delete(`/reviews/${reviewId}`),
 };
 

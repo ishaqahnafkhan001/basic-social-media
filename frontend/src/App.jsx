@@ -14,6 +14,7 @@ import UpdateTour from "./pages/UpDateTour.jsx";
 import MainDash from "./pages/MainDash.jsx";
 import TourDetail from "./pages/TourDetail.jsx";
 import Booking from "./pages/Booking.jsx";
+import Request from "./pages/Request.jsx";
 
 export default function App() {
     return (
@@ -45,6 +46,7 @@ export default function App() {
                     <Route path="/update-tour/:id" element={<ProtectedRoute><UpdateTour /></ProtectedRoute>} />
                     <Route path="/tours/:id" element={<ProtectedRoute><TourDetail /></ProtectedRoute>} />
                     <Route path="/tours/:id/book" element={<ProtectedRoute><Booking /></ProtectedRoute>} />
+                    <Route path="/request" element={<ProtectedRoute><Request /></ProtectedRoute>} />
                     {/* Fallback */}
                     <Route path="*" element={<AuthPage />} />
                 </Routes>

@@ -3,35 +3,37 @@ import api from "./axiosClient";
 const userApi = {
     // --- AUTHENTICATION ---
 
-    // REGISTER (Create User)
-    // Matches: router.post("/", createUser)
+    // REGISTER (JSON Only - Removed image upload support as requested)
     register: (data) => api.post("/users", data),
 
     // LOGIN
-    // Matches: router.post("/login", loginUser)
     login: (data) => api.post("/users/login", data),
 
-    // GET CURRENT USER (From Token)
-    // Matches: router.get("/id", authMiddleware, getId)
+    // GET CURRENT USER
     getMe: () => api.get("/users/id"),
 
 
     // --- USER MANAGEMENT ---
 
-    // GET ALL USERS (Can pass params like { role: 'agency' })
-    // Matches: router.get("/", authMiddleware, getUsers)
+    // GET ALL USERS
     getAll: (params) => api.get("/users", { params }),
 
-    // GET SINGLE USER BY ID
-    // Matches: router.get("/:id", authMiddleware, getUser)
+    // GET SINGLE USER
     getById: (id) => api.get(`/users/${id}`),
 
-    // UPDATE USER
-    // Matches: router.put("/:id", authMiddleware, updateUser)
-    update: (id, data) => api.put(`/users/${id}`, data),
+    // UPDATE USER (Supports JSON or FormData for Images)
+    // Matches: router.put("/:id", authMiddleware, upload.single('profilePicture'), updateUser)
+    update: (id, data) => {
+        // If we are sending a file (FormData), we let the browser set the Content-Type
+        // to ensure the correct 'boundary' is added.
+        const config = data instanceof FormData
+            ? { headers: { "Content-Type": undefined } }
+            : {};
+
+        return api.put(`/users/${id}`, data, config);
+    },
 
     // DELETE USER
-    // Matches: router.delete("/:id", authMiddleware, deleteUser)
     remove: (id) => api.delete(`/users/${id}`),
 };
 

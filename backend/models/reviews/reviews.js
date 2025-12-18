@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Joi = require('joi');
-const { Tour } = require('../tour/tour'); // Import Tour to update stats
+const { Tour } = require('../tour/tour');
+const { User } = require('../user/user');
 
 const reviewSchema = new mongoose.Schema({
     review: {
@@ -17,12 +18,20 @@ const reviewSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    // Parent Referencing
+
+    // --- LINKING FIELDS ---
     tour: {
         type: mongoose.Schema.ObjectId,
         ref: 'Tour',
-        required: [true, 'Review must belong to a tour.']
+        required: false
     },
+    targetUser: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User',
+        required: false
+    },
+
+    // The Author
     user: {
         type: mongoose.Schema.ObjectId,
         ref: 'User',
@@ -32,19 +41,26 @@ const reviewSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// PREVENT DUPLICATE REVIEWS
-// A user can only write one review per tour
-reviewSchema.index({ tour: 1, user: 1 }, { unique: true });
+// --- INDEXES (UPDATED) ---
+// We removed "unique: true".
+// We keep simple indexes so fetching reviews remains fast.
 
-// --- STATIC METHOD: Calculate Average Rating ---
-reviewSchema.statics.calcAverageRatings = async function(tourId) {
+reviewSchema.index({ tour: 1 });       // Fast lookup for Tour reviews
+reviewSchema.index({ targetUser: 1 }); // Fast lookup for Agency reviews
+reviewSchema.index({ user: 1 });       // Fast lookup for "My Reviews"
+
+// --- STATIC METHOD: Calculate Stats ---
+reviewSchema.statics.calcAverageRatings = async function(targetId, type) {
+    const Model = type === 'tour' ? Tour : User;
+    const matchField = type === 'tour' ? 'tour' : 'targetUser';
+
     const stats = await this.aggregate([
         {
-            $match: { tour: tourId }
+            $match: { [matchField]: targetId }
         },
         {
             $group: {
-                _id: '$tour',
+                _id: `$${matchField}`,
                 nRating: { $sum: 1 },
                 avgRating: { $avg: '$rating' }
             }
@@ -52,38 +68,49 @@ reviewSchema.statics.calcAverageRatings = async function(tourId) {
     ]);
 
     if (stats.length > 0) {
-        await Tour.findByIdAndUpdate(tourId, {
+        await Model.findByIdAndUpdate(targetId, {
             ratingsQuantity: stats[0].nRating,
-            ratingsAverage: stats[0].avgRating
+            ratingsAverage: Math.round(stats[0].avgRating * 10) / 10
         });
     } else {
-        // Reset if no reviews exist
-        await Tour.findByIdAndUpdate(tourId, {
+        await Model.findByIdAndUpdate(targetId, {
             ratingsQuantity: 0,
-            ratingsAverage: 0 // or 4.5 default
+            ratingsAverage: 0
         });
     }
 };
 
-// Update stats after saving a new review
+// --- HOOKS ---
 reviewSchema.post('save', function() {
-    // this.constructor points to the Model (Review)
-    this.constructor.calcAverageRatings(this.tour);
+    if (this.tour) {
+        this.constructor.calcAverageRatings(this.tour, 'tour');
+    } else if (this.targetUser) {
+        this.constructor.calcAverageRatings(this.targetUser, 'user');
+    }
 });
 
-// Update stats after updating/deleting a review (Advanced Mongoose)
-// (Optional - requires specific Query Middleware setup)
+reviewSchema.post(/^findOneAnd/, async function(doc) {
+    if (doc) {
+        if (doc.tour) {
+            await doc.constructor.calcAverageRatings(doc.tour, 'tour');
+        } else if (doc.targetUser) {
+            await doc.constructor.calcAverageRatings(doc.targetUser, 'user');
+        }
+    }
+});
 
 const Review = mongoose.model('Review', reviewSchema);
 
-// --- JOI VALIDATION FOR REVIEW ---
+// --- JOI VALIDATION ---
 function validateReview(data) {
     const schema = Joi.object({
         review: Joi.string().required(),
         rating: Joi.number().min(1).max(5).required(),
-        tour: Joi.string().required(), // The Tour ID
-        user: Joi.string().required()  // The User ID
-    });
+        tour: Joi.string().optional(),
+        targetUser: Joi.string().optional(),
+        user: Joi.string().required()
+    }).or('tour', 'targetUser');
+
     return schema.validate(data);
 }
 
