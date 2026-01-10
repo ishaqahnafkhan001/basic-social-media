@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 // 🔴 REPLACE WITH YOUR STRIPE PUBLIC KEY
 // You can find this in Stripe Dashboard > Developers > API Keys
-const stripePromise = loadStripe("pk_test_51SdzyyPC2eezPCVpeEerrK4h9x7V7T9jUblT5HdzkzDIkJRbfN09wcBmDh4ENNGO0OlabAanAaO4pcynEZVFCJiM00wGmKUKKm");
+const stripePromise = loadStripe(process.env.STRIPE_KEY);
 
 // --- 2. THE INTERNAL FORM COMPONENT ---
 const CheckoutForm = ({ onSuccess, onCancel, amount = 50 }) => {
