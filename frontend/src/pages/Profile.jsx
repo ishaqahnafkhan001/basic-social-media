@@ -117,7 +117,7 @@ export default function Profile() {
 
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to log out?")) {
-            localStorage.removeItem("token");
+            localStorage.clear();
             toast.success("Logged out successfully");
             setTimeout(() => {
                 navigate("/auth");

@@ -3,7 +3,7 @@ const router = express.Router();
 const { authMiddleware } = require("../middleware/auth");
 
 // 1. Import Cloudinary Upload Middleware
-const { upload } = require("../config/cloudinary");
+const { uploadProfile } = require("../config/cloudinary");
 
 // 2. Import Review Router for nested reviews
 const reviewRouter = require("./reviews"); // Adjust path if needed
@@ -46,7 +46,7 @@ router.get("/:id", authMiddleware, getUser);
 
 // UPDATE - Add 'upload.single' here!
 // This allows formData with an image file named 'profilePicture'
-router.put("/:id", authMiddleware, upload.single('profilePicture'), updateUser);
+router.put("/:id", authMiddleware, uploadProfile.single('profilePicture'), updateUser);
 
 router.delete("/:id", authMiddleware, deleteUser);
 

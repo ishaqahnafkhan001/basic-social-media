@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reviewRouter = require('./reviews'); // Import your review routes
+const { uploadTour } = require('../config/cloudinary');
 // Import the controller functions
 const {
     createTour,
@@ -10,43 +11,27 @@ const {
     deleteTour,
     getMyTours
 } = require('../controllers/tour/tour');
+const tourUploads = uploadTour.fields([
+    { name: 'coverImage', maxCount: 1 },
+    { name: 'images', maxCount: 6 }
+]);
 
-// Import Middleware
-// (Assuming you have these. If not, I can create them for you)
 const { authMiddleware, isAgency } = require('../middleware/auth');
 
-// ==============================
-// PUBLIC ROUTES (No login needed)
-// ==============================
 
-// GET /api/tours 
-// (Gets all tours, with pagination & filters)
 router.get('/', getAllTours);
 
-// ==============================
-// PROTECTED ROUTES (Login Required)
-// ==============================
 
-// GET /api/tours/agency/my-tours
-// Get all tours belonging to the currently logged-in agency
-// NOTE: This must be defined BEFORE /:id to avoid conflicts
 router.get('/agency/my-tours', authMiddleware, isAgency, getMyTours);
 
-// GET /api/tours/:id
-// (Get single tour details - Public, but defined here to keep order clean)
 router.get('/:id', getTourById);
 
-// POST /api/tours
-// (Create a new tour - Only Agencies)
-router.post('/', authMiddleware, isAgency, createTour);
+router.post('/', authMiddleware, isAgency, tourUploads, createTour);
 
-// PATCH /api/tours/:id
-// (Update a tour - Only the Owner Agency)
-router.put('/:id', authMiddleware, isAgency, updateTour);
+router.put('/:id', authMiddleware, isAgency, tourUploads, updateTour);
 
-// DELETE /api/tours/:id
-// (Delete a tour - Only the Owner Agency)
 router.delete('/:id', authMiddleware, isAgency, deleteTour);
+
 router.use('/:tourId/reviews', reviewRouter);
 
 module.exports = router;

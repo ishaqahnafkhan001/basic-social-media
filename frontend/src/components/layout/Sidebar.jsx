@@ -16,7 +16,7 @@ const MENU_ROLES = {
         { id: "myBlog", label: "My Blog", icon: <FiFileText />, path: "/blog/myBlogs" },
         { id: "create", label: "Create blog", icon: <FiPlus />, path: "/create-blog" },
         { id: "settings", label: "Settings", icon: <FiSettings />, path: "#" },
-        { id: "booking", label: "Booking", icon: <FiBookOpen />, path: "#" },
+        { id: "booking", label: "Booking", icon: <FiBookOpen />, path: "/my-bookings" },
 
     ],
     agency: [

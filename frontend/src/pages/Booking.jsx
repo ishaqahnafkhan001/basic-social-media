@@ -11,19 +11,24 @@ const Booking = () => {
     const navigate = useNavigate();
     const { user, isLoggedIn } = useUser();
 
+    // --- DATE LOGIC: Min 3 days in advance ---
+    const today = new Date();
+    today.setDate(today.getDate() + 3);
+    const minDate = today.toISOString().split('T')[0];
+
     // Data State
     const [tour, setTour] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // --- NEW: Partner/Guest State ---
+    // Partner/Guest State
     const [partners, setPartners] = useState([]);
 
     // Form State (Main User)
     const [bookingData, setBookingData] = useState({
         fullName: user?.name || '',
         phone: user?.phoneNumber || '',
-        bookAt: ''
+        bookAt: minDate // Default to minimum allowed date
     });
 
     // Load Tour Data
@@ -33,8 +38,12 @@ const Booking = () => {
                 const res = await tourApi.getById(id);
                 setTour(res.data.data || res.data);
 
+                // If tour has a fixed start date, check if it is valid
                 if(res.data.data?.startDate) {
-                    setBookingData(prev => ({...prev, bookAt: res.data.data.startDate.split('T')[0]}));
+                    const tourDate = res.data.data.startDate.split('T')[0];
+                    if (tourDate >= minDate) {
+                        setBookingData(prev => ({...prev, bookAt: tourDate}));
+                    }
                 }
             } catch (err) {
                 console.error("Failed to load tour");
@@ -43,19 +52,16 @@ const Booking = () => {
             }
         };
         fetchTour();
-    }, [id]);
+    }, [id, minDate]);
 
-    // --- NEW: Calculation Logic ---
-    // Total guests = 1 (Main User) + Number of Partners
+    // --- Calculations ---
     const totalGuests = 1 + partners.length;
-
     const price = tour?.pricePerPerson || 0;
     const serviceFee = 10;
     const totalAmount = (price * totalGuests) + serviceFee;
 
-    // --- NEW: Partner Handlers ---
+    // --- Handlers ---
     const addPartner = () => {
-        // Prevent adding more than max group size
         if (tour && totalGuests >= tour.maxGroupSize) {
             return alert(`Maximum group size is ${tour.maxGroupSize}`);
         }
@@ -73,20 +79,25 @@ const Booking = () => {
         setPartners(updatedPartners);
     };
 
-    // Main User Handlers
     const handleChange = (e) => {
         setBookingData({ ...bookingData, [e.target.id]: e.target.value });
     };
 
+    // --- SUBMIT: Booking + Stripe Redirect ---
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!isLoggedIn) return alert("Please sign in to book.");
         if (!bookingData.bookAt || !bookingData.fullName || !bookingData.phone) {
-            return alert("Please fill in all required fields for yourself.");
+            return alert("Please fill in all required fields.");
         }
 
-        // Validate partners
+        // Validate Date
+        if (bookingData.bookAt < minDate) {
+            return alert("Bookings must be made at least 3 days in advance.");
+        }
+
+        // Validate Partners
         for (let p of partners) {
             if (!p.fullName) return alert("Please fill in names for all added guests.");
         }
@@ -94,33 +105,38 @@ const Booking = () => {
         setIsProcessing(true);
 
         try {
+            // REMOVE 'userId' from this object
             const payload = {
-                userId: user.id || user._id,
-                userEmail: user.email,
+                // userId: user.id,  <-- DELETE THIS LINE. The backend gets ID from your Token.
+
+                userEmail: user.email, // Check if your backend Joi schema allows this. If not, remove this too.
                 tourName: tour.title,
                 tourId: tour._id,
-
-                // Main User Details
                 fullName: bookingData.fullName,
                 phone: bookingData.phone,
                 bookAt: bookingData.bookAt,
-
-                // Calculated Totals
                 guestSize: totalGuests,
                 totalAmount: totalAmount,
-
-                // Send partner details (Ensure your backend schema can accept this array, or simply ignore it)
                 guestDetails: partners
             };
 
-            await bookingApi.create(payload);
+            const res = await bookingApi.create(payload);
+            const newBooking = res.data.data || res.data;
+            const bookingId = newBooking._id || newBooking.id;
 
-            alert("Booking Successful! Redirecting...");
-            // navigate('/dashboard');
+            const sessionRes = await bookingApi.createCheckoutSession(bookingId);
+
+            if(sessionRes.data.url) {
+                window.location.href = sessionRes.data.url;
+            } else {
+                alert("Failed to initialize payment.");
+                setIsProcessing(false);
+            }
 
         } catch (err) {
+            console.error(err);
+            // This will now show the actual error if something else is wrong
             alert(err.response?.data?.message || "Booking failed");
-        } finally {
             setIsProcessing(false);
         }
     };
@@ -172,9 +188,12 @@ const Booking = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="bookAt" className="block text-sm font-bold text-slate-700 mb-1.5">Date</label>
+                                    <label htmlFor="bookAt" className="block text-sm font-bold text-slate-700 mb-1.5">
+                                        Date <span className="text-slate-400 font-normal ml-2 text-xs">(Min 3 days in advance)</span>
+                                    </label>
                                     <input
                                         type="date" id="bookAt"
+                                        min={minDate} /* Enforce 3 day rule */
                                         value={bookingData.bookAt} onChange={handleChange}
                                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition"
                                         required
@@ -182,7 +201,7 @@ const Booking = () => {
                                 </div>
                             </div>
 
-                            {/* --- NEW SECTION: Partners / Guests --- */}
+                            {/* Partners Section */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider">Additional Guests</h3>
@@ -202,7 +221,6 @@ const Booking = () => {
                                                 type="button"
                                                 onClick={() => removePartner(index)}
                                                 className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition"
-                                                title="Remove guest"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -249,7 +267,7 @@ const Booking = () => {
                                 </h3>
                                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-500 flex items-start gap-3">
                                     <Info className="w-5 h-5 text-indigo-500 shrink-0" />
-                                    <p>This is a demo. No actual payment will be processed.</p>
+                                    <p>You will be redirected to Stripe to securely complete your payment.</p>
                                 </div>
                             </div>
                         </form>

@@ -5,33 +5,27 @@ const tourApi = {
     // PUBLIC ROUTES
     // ==============================
 
-    // GET /api/tours
+    // GET /api/tours?page=1&limit=10&minPrice=500...
     getAll: (params) => api.get("/tours", { params }),
 
     // GET /api/tours/:id
     getById: (id) => api.get(`/tours/${id}`),
 
     // ==============================
-    // REVIEW ROUTES (New)
+    // PROTECTED / AGENCY ROUTES
     // ==============================
 
     // POST /api/tours/:id/reviews
-    // (Or /api/reviews depending on how you mounted the route)
-    // This assumes you set up the nested route I suggested earlier
     addReview: (tourId, reviewData) => api.post(`/tours/${tourId}/reviews`, reviewData),
 
-    // ==============================
-    // AGENCY ROUTES (Protected)
-    // ==============================
-
-    // GET /api/tours/agency/my-tours
-    getMyTours: () => api.get("/tours/agency/my-tours"),
+    // GET /api/tours/agency/my-tours?page=1
+    // Updated to accept params for pagination in your dashboard
+    getMyTours: (params) => api.get("/tours/agency/my-tours", { params }),
 
     // POST /api/tours
     create: (data) => api.post("/tours", data),
 
     // PUT /api/tours/:id
-    // (Updated comment: Backend uses PUT)
     update: (id, data) => api.put(`/tours/${id}`, data),
 
     // DELETE /api/tours/:id

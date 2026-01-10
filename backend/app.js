@@ -6,6 +6,7 @@ const tourRouter = require('./routes/tours');
 const commentRouter = require('./routes/comments');
 const reviewRouter = require('./routes/reviews');
 // const requestRoutes = require('./routes/requests');
+const bookingRouter = require('./routes/booking');
 const connectDB = require('./db/db');
 const cors = require('cors');
 dotenv.config();
@@ -32,5 +33,6 @@ app.use('/api/tours', tourRouter);
 app.use('/api/comments', commentRouter);
 app.use('/api/reviews', reviewRouter);
 // app.use('/api/requests', requestRoutes);
+app.use('/api/bookings', bookingRouter);
 // Start server
 app.listen(port, () => console.log(`server is running on port ${port}`));
