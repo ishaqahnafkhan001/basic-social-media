@@ -37,3 +37,4 @@ app.use('/api/bookings', bookingRouter);
 // Start server
 app.listen(port, () => console.log(`server is running on port ${port}`));
 module.exports = app;
+// for vercel
