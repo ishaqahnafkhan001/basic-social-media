@@ -31,6 +31,7 @@ app.get("/", (req, res) => {
     res.send("Hello World");
 });
 
+
 app.use('/api/users', userRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/tours', tourRouter);
