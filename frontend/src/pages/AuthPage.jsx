@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import userApi from "../api/authApi";
+import api from "../api/axiosClient.js"; // <-- Import your configured axios instance here
 import { useNavigate } from "react-router-dom";
-import { FiCheck } from "react-icons/fi"; // Optional: Added for visual polish in list
+import { FiCheck } from "react-icons/fi";
 
 export default function AuthPage() {
     const [isSignup, setIsSignup] = useState(false);
@@ -16,6 +17,13 @@ export default function AuthPage() {
         password: "",
         role: "user"
     });
+
+    // Pings the backend to keep it awake whenever the AuthPage loads
+    useEffect(() => {
+        api.get("/notSleep/")
+            .then(() => console.log("Backend pinged successfully!"))
+            .catch((err) => console.error("Failed to ping backend:", err));
+    }, []);
 
     function handleChange(e) {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -56,17 +64,14 @@ export default function AuthPage() {
     }
 
     return (
-        // 1. Background changed to Slate-50 to match Dashboard
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans text-slate-800">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
-                // 2. Card container: White background, clean shadow, rounded-2xl
                 className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden border border-slate-100"
             >
                 {/* ---------- LEFT SIDE (Brand) ---------- */}
-                {/* Changed to Indigo Gradient to match the primary button color of dashboard */}
                 <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-600 to-violet-700 p-10 text-white">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-white text-xl">
@@ -114,7 +119,7 @@ export default function AuthPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {isSignup && (
                             <>
-                                {/* Role Selection - Styled to match dashboard inputs */}
+                                {/* Role Selection */}
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">I am a:</label>
                                     <div className="flex gap-3">

@@ -4,12 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="615b0c42-51df-47f2-bc1d-44d18a092911" name="Changes" comment="app">
-      <change afterPath="$PROJECT_DIR$/frontend/src/assets/Screenshot 2026-02-15 072926.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/assets/Screenshot 2026-02-15 072926.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/assets/marker.png" afterDir="false" />
+    <list default="true" id="615b0c42-51df-47f2-bc1d-44d18a092911" name="Changes" comment="app: update workspace and replace favicon">
+      <change afterPath="$PROJECT_DIR$/backend/models/notSleep.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/routes/notSleep.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/app.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,7 +16,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="87" />
+    <option name="cachedIndexableFilesCount" value="91" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -117,6 +116,7 @@
       <recent name="C:\Users\user\WebstormProjects\basic-social-media\frontend" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\user\WebstormProjects\basic-social-media\frontend\public" />
       <recent name="C:\Users\user\WebstormProjects\basic-social-media\frontend\src\pages" />
     </key>
   </component>
@@ -171,7 +171,7 @@
       <workItem from="1769397351050" duration="1435000" />
       <workItem from="1770620354253" duration="1594000" />
       <workItem from="1770794596085" duration="608000" />
-      <workItem from="1771110035498" duration="6473000" />
+      <workItem from="1771110035498" duration="9784000" />
     </task>
     <task id="LOCAL-00001" summary="pmp">
       <option name="closed" value="true" />
@@ -309,7 +309,23 @@
       <option name="project" value="LOCAL" />
       <updated>1771115434753</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="app: update workspace and replace favicon">
+      <option name="closed" value="true" />
+      <created>1771119740411</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1771119740411</updated>
+    </task>
+    <task id="LOCAL-00019" summary="app: update workspace and replace favicon">
+      <option name="closed" value="true" />
+      <created>1771186774441</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1771186774441</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -333,7 +349,8 @@
     <MESSAGE value="app: add root" />
     <MESSAGE value="app:" />
     <MESSAGE value="app" />
-    <option name="LAST_COMMIT_MESSAGE" value="app" />
+    <MESSAGE value="app: update workspace and replace favicon" />
+    <option name="LAST_COMMIT_MESSAGE" value="app: update workspace and replace favicon" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
