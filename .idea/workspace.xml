@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="615b0c42-51df-47f2-bc1d-44d18a092911" name="Changes" comment="app: add root" />
+    <list default="true" id="615b0c42-51df-47f2-bc1d-44d18a092911" name="Changes" comment="app" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -164,7 +164,7 @@
       <workItem from="1769397351050" duration="1435000" />
       <workItem from="1770620354253" duration="1594000" />
       <workItem from="1770794596085" duration="608000" />
-      <workItem from="1771110035498" duration="4592000" />
+      <workItem from="1771110035498" duration="5176000" />
     </task>
     <task id="LOCAL-00001" summary="pmp">
       <option name="closed" value="true" />
@@ -286,7 +286,15 @@
       <option name="project" value="LOCAL" />
       <updated>1771114454539</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="app">
+      <option name="closed" value="true" />
+      <created>1771115055110</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1771115055110</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -307,9 +315,10 @@
     <MESSAGE value="pmp" />
     <MESSAGE value="app vercel" />
     <MESSAGE value="for vercel" />
-    <MESSAGE value="app" />
     <MESSAGE value="app: add root" />
-    <option name="LAST_COMMIT_MESSAGE" value="app: add root" />
+    <MESSAGE value="app:" />
+    <MESSAGE value="app" />
+    <option name="LAST_COMMIT_MESSAGE" value="app" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
