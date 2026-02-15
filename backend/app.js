@@ -17,8 +17,14 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.CLIENT_URL_02
+];
+
 app.use(cors({
-    origin: process.env.CLIENT_URL || process.env.CLIENT_URL_02, // your frontend port
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
