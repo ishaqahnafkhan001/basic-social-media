@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="615b0c42-51df-47f2-bc1d-44d18a092911" name="Changes" comment="app: add root" />
+    <list default="true" id="615b0c42-51df-47f2-bc1d-44d18a092911" name="Changes" comment="app: add root">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/app.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -100,10 +103,10 @@
 }]]></component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1772101240204" />
-    <option name="spentUsd" value="0.02665815" />
+    <option name="spentUsd" value="0.0372719" />
   </component>
   <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="2" />
+    <option name="suspendCountdown" value="1" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -164,7 +167,7 @@
       <workItem from="1769397351050" duration="1435000" />
       <workItem from="1770620354253" duration="1594000" />
       <workItem from="1770794596085" duration="608000" />
-      <workItem from="1771110035498" duration="3172000" />
+      <workItem from="1771110035498" duration="4161000" />
     </task>
     <task id="LOCAL-00001" summary="pmp">
       <option name="closed" value="true" />
@@ -270,7 +273,15 @@
       <option name="project" value="LOCAL" />
       <updated>1771113347578</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="app: add root">
+      <option name="closed" value="true" />
+      <created>1771113462626</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1771113462626</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
