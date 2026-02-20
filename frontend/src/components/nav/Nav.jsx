@@ -25,7 +25,7 @@ function Nav({ cartCount }) {
                 <div className="flex items-center justify-between h-16">
 
                     {/* Logo Section */}
-                    <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
+                    <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/dashboard'}>
                         <div className="bg-indigo-600 p-1.5 rounded-lg text-white shadow-lg shadow-indigo-500/30">
                             <MapPin className="w-5 h-5" />
                         </div>
